@@ -91,7 +91,7 @@ app.get('*', async (req, res) => {
     const timestamp = new Date();
     const ip = req.clientIp.split(':').pop();
     const ip_info = (
-      await axios.get(`http://ip-api.com/json/173.34.198.249?fields=18575355`)
+      await axios.get(`http://ip-api.com/json/${ip}?fields=18575355`)
     ).data;
     const origin = req.get('origin') || req.get('host');
     const flag = `https://flagcdn.com/24x18/${ip_info?.countryCode.toLowerCase()}.png`;
