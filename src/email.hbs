@@ -10,9 +10,10 @@
   none; display: flex; justify-content: space-between; margin: 10px 0;
   border-radius: 10px; padding: 5px 5px; border: solid 1px #000; box-shadow: 0
   2px 5px #000; } .visitor-info ul li b { text-align: left; font-size: 14pt;
-  margin-right: 15px; } @media screen and (max-width: 768px) { .email-content {
-  flex-direction: column; justify-content: center; } .visitor-location {
-  margin-top: 30px; margin-left: auto; margin-right: auto; } }
+  margin-right: 15px; } .visitor-info ul li img { width: 24px; height: 18px; }
+  @media screen and (max-width: 768px) { .email-content { flex-direction:
+  column; justify-content: center; } .visitor-location { margin-top: 30px;
+  margin-left: auto; margin-right: auto; } }
 </style>
 <div class='email'>
   <h1>Visitor Info</h1>
@@ -29,7 +30,13 @@
           <li><b>Region:</b><span>{{regionName}}</span></li>
         {{/if}}
         {{#if country}}
-          <li><b>Country:</b><span>{{country}}</span></li>
+          <li>
+            <b>Country:</b>
+            <span>
+              {{country}}
+              <img src={{flag}} />
+            </span>
+          </li>
         {{/if}}
         {{#if continent}}
           <li><b>Continent:</b><span>{{continent}}</span></li>
@@ -62,9 +69,12 @@
         {{#if platform}}
           <li><b>Platform:</b>{{platform}}</li>
         {{/if}}
-        {{#if type}}
-          <li><b>Device Type:</b>{{type}}{{#if name}}/{{name}}{{/if}}</li>
-        {{/if}}
+        {{#ifOr type name}}
+          <li><b>Device Type:</b>
+            {{#if type}}{{type}}{{/if}}
+            /
+            {{#if name}}{{name}}{{/if}}</li>
+        {{/ifOr}}
         {{#if source}}
           <li><b>User Agent:</b>{{source}}</li>
         {{/if}}
@@ -74,12 +84,15 @@
         {{#if org}}
           <li><b>Organization:</b>{{org}}</li>
         {{/if}}
-        {{#if proxy}}
-          <li><b>Is Proxy:</b>{{#if proxy}}Yes{{else}}No{{/if}}</li>
+        {{#if as}}
+          <li><b>Auto Sys:</b>{{as}}</li>
         {{/if}}
-        {{#if mobile}}
-          <li><b>Is Mobile:</b>{{#if mobile}}Yes{{else}}No{{/if}}</li>
-        {{/if}}
+        <li><b>Is Mobile:</b>{{#ifOr
+            mobile
+            isMobile
+          }}Yes{{else}}No{{/ifOr}}</li>
+        <li><b>Is Proxy:</b>{{#if proxy}}Yes{{else}}No{{/if}}</li>
+        <li><b>Is Hosting:</b>{{#if hosting}}Yes{{else}}No{{/if}}</li>
       </ul>
     </div>
     <div class='visitor-location'>

@@ -53,6 +53,12 @@ hb.registerHelper('ifAnd', function (v1, v2, options) {
   }
   return options.inverse(this);
 });
+hb.registerHelper('ifOr', function (v1, v2, options) {
+  if (v1 || v2) {
+    return options.fn(this);
+  }
+  return options.inverse(this);
+});
 
 // Server setup
 const date_options = {
@@ -79,15 +85,20 @@ app.use(express_device());
 app.get('*', async (req, res) => {
   try {
     const { authorization } = req.headers;
-    if (authorization !== process.env.AUTHORIZATION)
-      throw new Error('Unauthorized API Call');
+    // if (authorization !== process.env.AUTHORIZATION)
+    //   throw new Error('Unauthorized API Call');
 
     const timestamp = new Date();
     const ip = req.clientIp.split(':').pop();
+    const ip_info = (
+      await axios.get(`http://ip-api.com/json/173.34.198.249?fields=18575355`)
+    ).data;
     const origin = req.get('origin') || req.get('host');
+    const flag = `https://flagcdn.com/24x18/${ip_info?.countryCode.toLowerCase()}.png`;
     const client_info = {
-      ...(await axios.get(`http://ip-api.com/json/${ip}?fields=18573305`)).data,
-      origin
+      ...ip_info,
+      origin,
+      flag
     };
     const { type, name } = req.device;
     const user_agent = { ...req.useragent, type, name };
@@ -97,7 +108,7 @@ app.get('*', async (req, res) => {
         ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=11&size=300x400&maptype=roadmap&markers=color:red%7C${lat},${lon}&key=${process.env.GOOGLE_API_KEY}`
         : '';
 
-    await IP_model.create({ ip, timestamp });
+    // await IP_model.create({ ip, timestamp });
 
     const html = readFileSync('./src/email.hbs', 'utf-8');
     const compiled = hb.compile(html);
@@ -108,12 +119,13 @@ app.get('*', async (req, res) => {
       mapUrl
     });
 
-    await transporter.sendMail({
-      from: sender_email,
-      to: receiver_email,
-      subject: `New Website Visitor from ${client_info?.city}, ${client_info?.country}!`,
-      html: email_content
-    });
+    console.log(email_content);
+    // await transporter.sendMail({
+    //   from: sender_email,
+    //   to: receiver_email,
+    //   subject: `New Website Visitor from ${client_info?.city}, ${client_info?.country}!`,
+    //   html: email_content
+    // });
   } catch (err) {
     console.error(err);
   }
