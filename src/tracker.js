@@ -89,8 +89,7 @@ app.get('*', async (req, res) => {
     ).data;
     const { type, name } = req.device;
     const user_agent = { ...req.useragent, type, name };
-    const lat = client_info?.lat;
-    const lon = client_info?.lon;
+    const { lat, lon } = client_info;
     const mapUrl =
       lat && lon
         ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=11&size=300x400&maptype=roadmap&markers=color:red%7C${lat},${lon}&key=${process.env.GOOGLE_API_KEY}`
