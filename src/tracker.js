@@ -1,15 +1,20 @@
 import { config as env_config } from 'dotenv';
 import { readFileSync } from 'fs';
 import express from 'express';
+import { Schema, model } from 'mongoose';
 import cors from 'cors';
 import { connect as mongoose_connect, set as mongoose_set } from 'mongoose';
 import axios from 'axios';
-import handlebars from 'handlebars';
+import hb from 'handlebars';
 import { createTransport } from 'nodemailer';
 import { mw as express_ip } from 'request-ip';
 import { express as express_useragent } from 'express-useragent';
-import { Schema, model } from 'mongoose';
+import { capture as express_device } from 'express-device';
 
+// START General Setup
+env_config();
+
+// Database setup
 const IPSchema = new Schema({
   ip: { type: String, unique: true, required: true, immutable: true },
   timestamp: {
@@ -19,11 +24,7 @@ const IPSchema = new Schema({
     expires: 60 * 60
   }
 });
-
 const IP_model = model('ip', IPSchema);
-
-env_config();
-
 const database = process.env.MONGO_URI;
 mongoose_set('strictQuery', true);
 mongoose_connect(database, {
@@ -33,19 +34,10 @@ mongoose_connect(database, {
   throw new Error(err);
 });
 
-const PORT = process.env.PORT || 3000;
-const app = express();
-
-app.use(cors({ origin: '*' }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express_ip());
-app.use(express_useragent());
-
+// Mailer setup
 const sender_email = process.env.SENDER_EMAIL;
 const sender_password = process.env.SENDER_PASSWORD;
 const receiver_email = process.env.RECEIVER_EMAIL;
-
 const transporter = createTransport({
   service: 'gmail',
   auth: {
@@ -54,6 +46,15 @@ const transporter = createTransport({
   }
 });
 
+// Handlebars setup
+hb.registerHelper('ifAnd', function (v1, v2, options) {
+  if (v1 && v2) {
+    return options.fn(this);
+  }
+  return options.inverse(this);
+});
+
+// Server setup
 const date_options = {
   weekday: 'short',
   year: 'numeric',
@@ -63,20 +64,42 @@ const date_options = {
   minute: 'numeric',
   timeZone: 'America/Toronto'
 };
+const PORT = process.env.PORT || 3000;
+const app = express();
+
+// END General Setup
+
+app.use(cors({ origin: '*' }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express_ip());
+app.use(express_useragent());
+app.use(express_device());
 
 app.get('*', async (req, res) => {
   try {
+    const { authorization } = req.headers;
+    if (authorization !== process.env.AUTHORIZATION)
+      throw new Error('Unauthorized API Call');
+
     const timestamp = new Date();
     const ip = req.clientIp.split(':').pop();
     const client_info = (
       await axios.get(`http://ip-api.com/json/${ip}?fields=18573305`)
     ).data;
-    const user_agent = req.useragent;
-    const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${client_info?.lat},${client_info?.lon}&zoom=11&size=300x400&maptype=roadmap&markers=color:red%7C${client_info?.lat},${client_info?.lon}&key=${process.env.GOOGLE_API_KEY}`; //&signature=YOUR_SIGNATURE`;
+    const { type, name } = req.device;
+    const user_agent = { ...req.useragent, type, name };
+    const lat = client_info?.lat;
+    const lon = client_info?.lon;
+    const mapUrl =
+      lat && lon
+        ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=11&size=300x400&maptype=roadmap&markers=color:red%7C${lat},${lon}&key=${process.env.GOOGLE_API_KEY}`
+        : '';
 
     await IP_model.create({ ip, timestamp });
-    const html = readFileSync('./tracker/email.hbs', 'utf-8');
-    const compiled = handlebars.compile(html);
+
+    const html = readFileSync('./src/email.hbs', 'utf-8');
+    const compiled = hb.compile(html);
     const email_content = compiled({
       ...client_info,
       ...user_agent,

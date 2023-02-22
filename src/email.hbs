@@ -22,28 +22,67 @@
         {{#if district}}
           <li><b>District:</b><span>{{district}}</span></li>
         {{/if}}
-        <li><b>City:</b><span>{{city}}</span></li>
-        <li><b>Region:</b><span>{{regionName}}</span></li>
-        <li><b>Country:</b><span>{{country}}</span></li>
-        <li><b>Continent:</b><span>{{continent}}</span></li>
-        <li><b>Postal:</b><span>{{zip}}</span></li>
-        <li><b>Timezone:</b><span>{{timezone}}</span></li>
-        <li><b>Coordinates:</b><span>Lat:[{{lat}}] Lon:[{{lon}}]</span></li>
-        <li><b>Timestamp:</b><span>{{timestamp}}</span></li>
+        {{#if city}}
+          <li><b>City:</b><span>{{city}}</span></li>
+        {{/if}}
+        {{#if regionName}}
+          <li><b>Region:</b><span>{{regionName}}</span></li>
+        {{/if}}
+        {{#if country}}
+          <li><b>Country:</b><span>{{country}}</span></li>
+        {{/if}}
+        {{#if continent}}
+          <li><b>Continent:</b><span>{{continent}}</span></li>
+        {{/if}}
+        {{#if zip}}
+          <li><b>Postal:</b><span>{{zip}}</span></li>
+        {{/if}}
+        {{#if timezone}}
+          <li><b>Timezone:</b><span>{{timezone}}</span></li>
+        {{/if}}
+        {{#ifAnd lat lon}}
+          <li><b>Coordinates:</b><span>Lat:[{{lat}}] Lon:[{{lon}}]</span></li>
+        {{/ifAnd}}
+        {{#if timestamp}}
+          <li><b>Timestamp:</b><span>{{timestamp}}</span></li>
+        {{/if}}
         <hr />
-        <li><b>IP Address:</b>{{query}}</li>
-        <li><b>OS:</b>{{os}}</li>
-        <li><b>Browser:</b>{{browser}}</li>
-        <li><b>Platform:</b>{{platform}}</li>
-        <li><b>User Agent:</b>{{source}}</li>
-        <li><b>ISP:</b> {{isp}}</li>
-        <li><b>Organization:</b>{{org}}</li>
-        <li><b>Is Proxy:</b>{{#if proxy}}Yes{{else}}No{{/if}}</li>
-        <li><b>Is Mobile:</b>{{#if mobile}}Yes{{else}}No{{/if}}</li>
+        {{#if query}}
+          <li><b>IP Address:</b>{{query}}</li>
+        {{/if}}
+        {{#if os}}
+          <li><b>OS:</b>{{os}}</li>
+        {{/if}}
+        {{#if browser}}
+          <li><b>Browser:</b>{{browser}}</li>
+        {{/if}}
+        {{#if platform}}
+          <li><b>Platform:</b>{{platform}}</li>
+        {{/if}}
+        {{#if type}}
+          <li><b>Device Type:</b>{{type}}{{#if name}}/{{name}}{{/if}}</li>
+        {{/if}}
+        {{#if source}}
+          <li><b>User Agent:</b>{{source}}</li>
+        {{/if}}
+        {{#if isp}}
+          <li><b>ISP:</b> {{isp}}</li>
+        {{/if}}
+        {{#if org}}
+          <li><b>Organization:</b>{{org}}</li>
+        {{/if}}
+        {{#if proxy}}
+          <li><b>Is Proxy:</b>{{#if proxy}}Yes{{else}}No{{/if}}</li>
+        {{/if}}
+        {{#if mobile}}
+          <li><b>Is Mobile:</b>{{#if mobile}}Yes{{else}}No{{/if}}</li>
+        {{/if}}
       </ul>
     </div>
     <div class='visitor-location'>
-      <img src={{mapUrl}} alt='Visitor Map Location' loading='lazy' />
+      {{#if mapUrl}}
+        <img src={{mapUrl}} alt='Visitor Map Location' loading='lazy' />
+      {{/if}}
     </div>
   </div>
 </div>
