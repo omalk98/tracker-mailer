@@ -85,8 +85,8 @@ app.use(express_device());
 app.get('*', async (req, res) => {
   try {
     const { authorization } = req.headers;
-    // if (authorization !== process.env.AUTHORIZATION)
-    //   throw new Error('Unauthorized API Call');
+    if (authorization !== process.env.AUTHORIZATION)
+      throw new Error('Unauthorized API Call');
 
     const timestamp = new Date();
     const ip = req.clientIp.split(':').pop();
@@ -108,7 +108,7 @@ app.get('*', async (req, res) => {
         ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=11&size=300x400&maptype=roadmap&markers=color:red%7C${lat},${lon}&key=${process.env.GOOGLE_API_KEY}`
         : '';
 
-    // await IP_model.create({ ip, timestamp });
+    await IP_model.create({ ip, timestamp });
 
     const html = readFileSync('./src/email.hbs', 'utf-8');
     const compiled = hb.compile(html);
@@ -119,13 +119,12 @@ app.get('*', async (req, res) => {
       mapUrl
     });
 
-    console.log(email_content);
-    // await transporter.sendMail({
-    //   from: sender_email,
-    //   to: receiver_email,
-    //   subject: `New Website Visitor from ${client_info?.city}, ${client_info?.country}!`,
-    //   html: email_content
-    // });
+    await transporter.sendMail({
+      from: sender_email,
+      to: receiver_email,
+      subject: `New Website Visitor from ${client_info?.city}, ${client_info?.country}!`,
+      html: email_content
+    });
   } catch (err) {
     console.error(err);
   }
