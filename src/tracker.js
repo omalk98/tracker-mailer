@@ -84,9 +84,11 @@ app.get('*', async (req, res) => {
 
     const timestamp = new Date();
     const ip = req.clientIp.split(':').pop();
-    const client_info = (
-      await axios.get(`http://ip-api.com/json/${ip}?fields=18573305`)
-    ).data;
+    const origin = req.get('origin') || req.get('host');
+    const client_info = {
+      ...(await axios.get(`http://ip-api.com/json/${ip}?fields=18573305`)).data,
+      origin
+    };
     const { type, name } = req.device;
     const user_agent = { ...req.useragent, type, name };
     const { lat, lon } = client_info;
