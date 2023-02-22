@@ -1,0 +1,49 @@
+<style>
+  .email { text-align: center; width: 100%; height: 100%; background-color:
+  #1f303f; padding: 5px 10px; border-radius: 10px; } .email h1 { color: #fff;
+  padding: 10px 20px; margin: 0; padding-bottom: 30px; text-decoration:
+  underline; } .email-content { padding: 10px 20px; color: #fff; display: flex;
+  justify-content: space-between; } .visitor-location { min-width: 200px;
+  min-height: 400px; margin: 0 20px; } .visitor-location img { min-width: 200px;
+  min-height: 400px; } .visitor-info ul { margin: 0; padding: 0; } .visitor-info
+  hr { margin: 30px 0; } .visitor-info ul li { text-align: right; list-style:
+  none; display: flex; justify-content: space-between; margin: 10px 0;
+  border-radius: 10px; padding: 5px 5px; border: solid 1px #000; box-shadow: 0
+  2px 5px #000; } .visitor-info ul li b { text-align: left; font-size: 14pt;
+  margin-right: 15px; } @media screen and (max-width: 768px) { .email-content {
+  flex-direction: column; justify-content: center; } .visitor-location {
+  margin-top: 30px; margin-left: auto; margin-right: auto; } }
+</style>
+<div class='email'>
+  <h1>Visitor Info</h1>
+  <div class='email-content'>
+    <div class='visitor-info'>
+      <ul>
+        {{#if district}}
+          <li><b>District:</b><span>{{district}}</span></li>
+        {{/if}}
+        <li><b>City:</b><span>{{city}}</span></li>
+        <li><b>Region:</b><span>{{regionName}}</span></li>
+        <li><b>Country:</b><span>{{country}}</span></li>
+        <li><b>Continent:</b><span>{{continent}}</span></li>
+        <li><b>Postal:</b><span>{{zip}}</span></li>
+        <li><b>Timezone:</b><span>{{timezone}}</span></li>
+        <li><b>Coordinates:</b><span>Lat:[{{lat}}] Lon:[{{lon}}]</span></li>
+        <li><b>Timestamp:</b><span>{{timestamp}}</span></li>
+        <hr />
+        <li><b>IP Address:</b>{{query}}</li>
+        <li><b>OS:</b>{{os}}</li>
+        <li><b>Browser:</b>{{browser}}</li>
+        <li><b>Platform:</b>{{platform}}</li>
+        <li><b>User Agent:</b>{{source}}</li>
+        <li><b>ISP:</b> {{isp}}</li>
+        <li><b>Organization:</b>{{org}}</li>
+        <li><b>Is Proxy:</b>{{#if proxy}}Yes{{else}}No{{/if}}</li>
+        <li><b>Is Mobile:</b>{{#if mobile}}Yes{{else}}No{{/if}}</li>
+      </ul>
+    </div>
+    <div class='visitor-location'>
+      <img src={{mapUrl}} alt='Visitor Map Location' loading='lazy' />
+    </div>
+  </div>
+</div>
