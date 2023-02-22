@@ -85,8 +85,10 @@ app.use(express_device());
 app.get('*', async (req, res) => {
   try {
     const { authorization } = req.headers;
-    if (authorization !== process.env.AUTHORIZATION)
-      throw new Error('Unauthorized API Call');
+    if (authorization !== process.env.AUTHORIZATION) {
+      res.sendStatus(401);
+      return;
+    }
 
     const timestamp = new Date();
     const ip = req.clientIp.split(':').pop();
