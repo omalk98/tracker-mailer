@@ -87,7 +87,7 @@ app.get('*', async (req, res) => {
     await transporter.sendMail({
       from: sender_email,
       to: receiver_email,
-      subject: `New Website Visitor from ${client_info?.regionName}, ${client_info?.country}!`,
+      subject: `New Website Visitor from ${client_info?.city}, ${client_info?.country}!`,
       html: email_content
     });
   } catch (err) {
