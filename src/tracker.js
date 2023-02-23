@@ -81,6 +81,10 @@ app.use(express_ip());
 app.use(express_useragent());
 app.use(express_device());
 
+app.get('/', async (req, res) => {
+  res.status(200).json({ mdg: 'Hello World!' });
+});
+
 app.get('*', async (req, res) => {
   try {
     const { authorization } = req.headers;
