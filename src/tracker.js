@@ -75,10 +75,6 @@ const router = express.Router();
 
 // END General Setup
 
-router.get('/', async (req, res) => {
-  res.status(200).json({ mdg: 'Hello World!' });
-});
-
 router.get('*', async (req, res) => {
   try {
     const { authorization } = req.headers;
