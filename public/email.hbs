@@ -63,21 +63,21 @@
         {{#if origin}}
           <li><b>Origin:</b>{{origin}}</li>
         {{/if}}
-        {{#ifOr os.name os.version}}
+        {{#ifOr os.name os.version ''}}
           <li><b>OS:</b>
             {{#if os.name}}{{os.name}}{{/if}}
             &nbsp;
             {{#if os.version}}{{os.version}}{{/if}}
           </li>
         {{/ifOr}}
-        {{#ifOr browser.name browser.version}}
+        {{#ifOr browser.name browser.version ''}}
           <li><b>Browser:</b>
             {{#if browser.name}}{{browser.name}}{{/if}}
             &nbsp;
             {{#if browser.version}}{{browser.version}}{{/if}}
           </li>
         {{/ifOr}}
-        {{#ifOr engine.name engine.version}}
+        {{#ifOr engine.name engine.version ''}}
           <li><b>Engine:</b>
             {{#if engine.name}}{{engine.name}}{{/if}}
             &nbsp;
