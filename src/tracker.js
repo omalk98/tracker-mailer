@@ -121,10 +121,11 @@ router.get('*', async (req, res) => {
       subject: `New Website Visitor from ${client_info?.city}, ${client_info?.country}!`,
       html: email_content
     });
+    res.sendStatus(200);
   } catch (err) {
     console.error(err);
+    res.status(400).text(err.message);
   }
-  res.sendStatus(200);
 });
 
 app.use(cors({ origin: '*' }));
