@@ -71,21 +71,15 @@ const date_options = {
   timeZone: 'America/Toronto'
 };
 const app = express();
+const router = express.Router();
 
 // END General Setup
 
-app.use(cors({ origin: '*' }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express_ip());
-app.use(express_useragent());
-app.use(express_device());
-
-app.get('/', async (req, res) => {
+router.get('/', async (req, res) => {
   res.status(200).json({ mdg: 'Hello World!' });
 });
 
-app.get('*', async (req, res) => {
+router.get('*', async (req, res) => {
   try {
     const { authorization } = req.headers;
     if (authorization !== process.env.AUTHORIZATION) {
@@ -135,5 +129,13 @@ app.get('*', async (req, res) => {
   }
   res.sendStatus(200);
 });
+
+app.use(cors({ origin: '*' }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express_ip());
+app.use(express_useragent());
+app.use(express_device());
+app.use(router);
 
 export default app;
