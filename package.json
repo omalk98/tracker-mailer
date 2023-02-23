@@ -2,10 +2,10 @@
   "name": "tracker-mailer",
   "version": "1.0.0",
   "description": "Send email with connection info on API call",
-  "main": "src/tracker.js",
+  "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node index.js"
   },
   "keywords": [],
   "author": "",
