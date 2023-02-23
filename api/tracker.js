@@ -95,7 +95,6 @@ router.get('*', async (req, res) => {
       origin,
       flag
     };
-    console.log(ip_info);
     const { type, name } = req.device;
     const user_agent = { ...req.useragent, type, name };
     const { lat, lon } = client_info;
