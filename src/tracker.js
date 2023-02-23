@@ -70,7 +70,6 @@ const date_options = {
   minute: 'numeric',
   timeZone: 'America/Toronto'
 };
-const PORT = process.env.PORT || 3000;
 const app = express();
 
 // END General Setup
@@ -133,4 +132,4 @@ app.get('*', async (req, res) => {
   res.sendStatus(200);
 });
 
-app.listen(PORT, () => {});
+export default app;
