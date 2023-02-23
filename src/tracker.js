@@ -89,12 +89,13 @@ router.get('*', async (req, res) => {
       await axios.get(`http://ip-api.com/json/${ip}?fields=18575355`)
     ).data;
     const origin = req.get('origin') || req.get('host');
-    const flag = `https://flagcdn.com/24x18/${ip_info?.countryCode.toLowerCase()}.png`;
+    const flag = `https://flagcdn.com/24x18/${ip_info?.countryCode?.toLowerCase()}.png`;
     const client_info = {
       ...ip_info,
       origin,
       flag
     };
+    console.log(ip_info);
     const { type, name } = req.device;
     const user_agent = { ...req.useragent, type, name };
     const { lat, lon } = client_info;
