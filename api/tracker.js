@@ -10,6 +10,8 @@ import { createTransport } from 'nodemailer';
 import { mw as express_ip } from 'request-ip';
 import { express as express_useragent } from 'express-useragent';
 import { capture as express_device } from 'express-device';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
 // START General Setup
 env_config();
@@ -70,6 +72,7 @@ const date_options = {
   minute: 'numeric',
   timeZone: 'America/Toronto'
 };
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const router = express.Router();
 
@@ -105,7 +108,7 @@ router.get('*', async (req, res) => {
 
     await IP_model.create({ ip, timestamp });
 
-    const html = readFileSync('/email.hbs', 'utf-8');
+    const html = readFileSync(join(__dirname, 'email.hbs'), 'utf-8');
     const compiled = hb.compile(html);
     const email_content = compiled({
       ...client_info,
