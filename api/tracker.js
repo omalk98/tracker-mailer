@@ -105,7 +105,7 @@ router.get('*', async (req, res) => {
 
     await IP_model.create({ ip, timestamp });
 
-    const html = readFileSync('./api/email.hbs', 'utf-8');
+    const html = readFileSync('/api/email.hbs', 'utf-8');
     const compiled = hb.compile(html);
     const email_content = compiled({
       ...client_info,
