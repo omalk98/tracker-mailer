@@ -1,4 +1,4 @@
-import app from './src/tracker.js';
+import app from './api/tracker.js';
 
 const PORT = process.env.PORT || 3000;
 
