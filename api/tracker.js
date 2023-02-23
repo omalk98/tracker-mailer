@@ -105,7 +105,7 @@ router.get('*', async (req, res) => {
 
     await IP_model.create({ ip, timestamp });
 
-    const html = readFileSync('/api/email.hbs', 'utf-8');
+    const html = readFileSync('./email.hbs', 'utf-8');
     const compiled = hb.compile(html);
     const email_content = compiled({
       ...client_info,
@@ -123,7 +123,7 @@ router.get('*', async (req, res) => {
     res.sendStatus(200);
   } catch (err) {
     console.error(err);
-    res.status(400).text(err.message);
+    res.sendStatus(200);
   }
 });
 
