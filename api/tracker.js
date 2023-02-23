@@ -1,5 +1,7 @@
 import { config as env_config } from 'dotenv';
 import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import { Schema, model } from 'mongoose';
 import cors from 'cors';
@@ -8,10 +10,7 @@ import axios from 'axios';
 import hb from 'handlebars';
 import { createTransport } from 'nodemailer';
 import { mw as express_ip } from 'request-ip';
-import { express as express_useragent } from 'express-useragent';
-import { capture as express_device } from 'express-device';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import ua_parser from 'ua-parser-js';
 
 // START General Setup
 env_config();
@@ -55,8 +54,8 @@ hb.registerHelper('ifAnd', function (v1, v2, options) {
   }
   return options.inverse(this);
 });
-hb.registerHelper('ifOr', function (v1, v2, options) {
-  if (v1 || v2) {
+hb.registerHelper('ifOr', function (v1, v2, v3, options) {
+  if (v1 || v2 || v3) {
     return options.fn(this);
   }
   return options.inverse(this);
@@ -98,8 +97,7 @@ router.get('*', async (req, res) => {
       origin,
       flag
     };
-    const { type, name } = req.device;
-    const user_agent = { ...req.useragent, type, name };
+    const user_agent = ua_parser(req.get('user-agent'));
     const { lat, lon } = client_info;
     const mapUrl =
       lat && lon
@@ -137,8 +135,6 @@ app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express_ip());
-app.use(express_useragent());
-app.use(express_device());
 app.use(router);
 
 export default app;

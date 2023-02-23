@@ -13,7 +13,10 @@
   margin-right: 15px; } .visitor-info ul li img { width: 24px; height: 18px; }
   @media screen and (max-width: 768px) { .email-content { flex-direction:
   column; justify-content: center; } .visitor-location { margin-top: 30px;
-  margin-left: auto; margin-right: auto; } }
+  margin-left: auto; margin-right: auto; } .visitor-info ul li { flex-direction:
+  column; text-align: center; justify-content: center; } .visitor-info ul li b {
+  text-align: center; } }
+
 </style>
 <div class='email'>
   <h1>Visitor Info</h1>
@@ -60,23 +63,41 @@
         {{#if origin}}
           <li><b>Origin:</b>{{origin}}</li>
         {{/if}}
-        {{#if os}}
-          <li><b>OS:</b>{{os}}</li>
-        {{/if}}
-        {{#if browser}}
-          <li><b>Browser:</b>{{browser}}</li>
-        {{/if}}
-        {{#if platform}}
-          <li><b>Platform:</b>{{platform}}</li>
-        {{/if}}
-        {{#ifOr type name}}
-          <li><b>Device Type:</b>
-            {{#if type}}{{type}}{{/if}}
-            /
-            {{#if name}}{{name}}{{/if}}</li>
+        {{#ifOr os.name os.version}}
+          <li><b>OS:</b>
+            {{#if os.name}}{{os.name}}{{/if}}
+            &nbsp;
+            {{#if os.version}}{{os.version}}{{/if}}
+          </li>
         {{/ifOr}}
-        {{#if source}}
-          <li><b>User Agent:</b>{{source}}</li>
+        {{#ifOr browser.name browser.version}}
+          <li><b>Browser:</b>
+            {{#if browser.name}}{{browser.name}}{{/if}}
+            &nbsp;
+            {{#if browser.version}}{{browser.version}}{{/if}}
+          </li>
+        {{/ifOr}}
+        {{#ifOr engine.name engine.version}}
+          <li><b>Engine:</b>
+            {{#if engine.name}}{{engine.name}}{{/if}}
+            &nbsp;
+            {{#if engine.version}}{{engine.version}}{{/if}}
+          </li>
+        {{/ifOr}}
+        {{#ifOr device.vendor device.model device.type}}
+          <li><b>Device Type:</b>
+            {{#if device.vendor}}{{device.vendor}}{{/if}}
+            &nbsp;
+            {{#if device.model}}{{device.model}}{{/if}}
+            &nbsp;
+            {{#if device.type}}{{device.type}}{{/if}}
+          </li>
+        {{/ifOr}}
+        {{#if cpu}}
+          <li><b>CPU:</b>{{cpu.architecture}}</li>
+        {{/if}}
+        {{#if ua}}
+          <li><b>User Agent:</b>{{ua}}</li>
         {{/if}}
         {{#if isp}}
           <li><b>ISP:</b> {{isp}}</li>
@@ -87,10 +108,7 @@
         {{#if as}}
           <li><b>Auto Sys:</b>{{as}}</li>
         {{/if}}
-        <li><b>Is Mobile:</b>{{#ifOr
-            mobile
-            isMobile
-          }}Yes{{else}}No{{/ifOr}}</li>
+        <li><b>Is Mobile:</b>{{#if mobile}}Yes{{else}}No{{/if}}</li>
         <li><b>Is Proxy:</b>{{#if proxy}}Yes{{else}}No{{/if}}</li>
         <li><b>Is Hosting:</b>{{#if hosting}}Yes{{else}}No{{/if}}</li>
       </ul>
