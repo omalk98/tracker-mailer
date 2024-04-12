@@ -22,7 +22,6 @@ const IPSchema = new Schema({
     type: Date,
     required: true,
     immutable: true,
-    expires: 60 * 60
   }
 });
 const IP_model = model('ip', IPSchema);
