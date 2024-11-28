@@ -165,25 +165,23 @@ router.get("*", async (req, res) => {
         ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=11&size=300x400&maptype=roadmap&markers=color:red%7C${lat},${lon}&key=${process.env.GOOGLE_API_KEY}`
         : "";
 
+    const existingRecord = await IP_model.findOne({
+      ip: ip,
+      timestamp: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
+    });
     await IP_model.create({ ...client_info, ...user_agent, timestamp });
+
+    if (existingRecord) {
+      console.warn("IP visited within the last 10 minutes");
+      res.sendStatus(200);
+      return;
+    }
 
     const html = readFileSync(
       join(__dirname, "../public", "email.hbs"),
       "utf-8"
     );
     const compiled = hb.compile(html);
-
-    const existingRecord = await IP_model.findOne({
-      ip: ip,
-      timestamp: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
-    });
-
-    if (existingRecord) {
-      console.log(existingRecord);
-      console.warn("IP visited within the last 10 minutes");
-      res.sendStatus(200);
-      return;
-    }
 
     const email_content = compiled({
       ...client_info,
