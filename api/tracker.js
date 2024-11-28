@@ -179,6 +179,7 @@ router.get("*", async (req, res) => {
     });
 
     if (existingRecord) {
+      console.log(existingRecord);
       console.warn("IP visited within the last 10 minutes");
       res.sendStatus(200);
       return;
