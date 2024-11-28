@@ -16,6 +16,28 @@ import ua_parser from "ua-parser-js";
 env_config();
 
 // Database setup
+const CoordinatesSchema = new Schema({
+  lat: Number,
+  lon: Number,
+});
+const DeviceSchema = new Schema({
+  model: String,
+  type: String,
+  vendor: String,
+});
+const OSSchema = new Schema({
+  name: String,
+  version: String,
+});
+const BrowserSchema = new Schema({
+  name: String,
+  version: String,
+  major: String,
+});
+const CPUSchema = new Schema({
+  architecture: String,
+});
+
 const IPSchema = new Schema({
   ip: { type: String, required: true, immutable: true },
   timestamp: {
@@ -36,27 +58,21 @@ const IPSchema = new Schema({
   proxy: Boolean,
   hosting: Boolean,
   coordinates: {
-    lat: Number,
-    lon: Number,
+    type: CoordinatesSchema,
   },
   origin: String,
   ua: String,
   os: {
-    name: String,
-    version: String,
+    type: OSSchema,
   },
   browser: {
-    name: String,
-    version: String,
-    major: String,
+    type: BrowserSchema,
   },
   device: {
-    model: String,
-    type: String,
-    vendor: String,
+    type: DeviceSchema,
   },
   cpu: {
-    architecture: String,
+    type: CPUSchema,
   },
 });
 const IP_model = model("ip", IPSchema);
