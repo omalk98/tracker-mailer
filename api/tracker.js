@@ -34,6 +34,10 @@ const BrowserSchema = new Schema({
   version: String,
   major: String,
 });
+const EngineSchema = new Schema({
+  name: String,
+  version: String,
+});
 const CPUSchema = new Schema({
   architecture: String,
 });
@@ -49,6 +53,7 @@ const IPSchema = new Schema({
   city: String,
   regionName: String,
   country: String,
+  countryCode: String,
   continent: String,
   zip: String,
   isp: String,
@@ -57,16 +62,19 @@ const IPSchema = new Schema({
   mobile: Boolean,
   proxy: Boolean,
   hosting: Boolean,
+  origin: String,
+  ua: String,
   coordinates: {
     type: CoordinatesSchema,
   },
-  origin: String,
-  ua: String,
   os: {
     type: OSSchema,
   },
   browser: {
     type: BrowserSchema,
+  },
+  engine: {
+    type: EngineSchema,
   },
   device: {
     type: DeviceSchema,
@@ -150,6 +158,7 @@ router.get("*", async (req, res) => {
     };
     const user_agent = ua_parser(req.get("user-agent"));
     const { lat, lon } = client_info;
+    client_info.coordinates = { lat, lon };
     const mapUrl =
       lat && lon
         ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=11&size=300x400&maptype=roadmap&markers=color:red%7C${lat},${lon}&key=${process.env.GOOGLE_API_KEY}`
