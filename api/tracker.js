@@ -139,6 +139,7 @@ router.get("*", async (req, res) => {
   try {
     const { authorization } = req.headers;
     if (authorization !== process.env.AUTHORIZATION) {
+      console.warn("Unauthorized access attempt");
       res.sendStatus(401);
       return;
     }
@@ -171,12 +172,14 @@ router.get("*", async (req, res) => {
       "utf-8"
     );
     const compiled = hb.compile(html);
+
     const existingRecord = await IP_model.findOne({
       ip: ip,
       timestamp: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
     });
 
     if (existingRecord) {
+      console.warn("IP visited within the last 10 minutes");
       res.sendStatus(200);
       return;
     }
@@ -194,6 +197,8 @@ router.get("*", async (req, res) => {
       subject: `New Website Visitor from ${client_info?.city}, ${client_info?.country}!`,
       html: email_content,
     });
+
+    console.log("Email sent successfully");
     res.sendStatus(200);
   } catch (err) {
     console.error(err);
