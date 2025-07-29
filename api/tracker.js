@@ -152,15 +152,69 @@ const router = express.Router();
 
 // END General Setup
 
-router.get("/{*any}", async (req, res) => {
-  try {
-    const { authorization, authid } = req.headers;
-    if (authorization !== process.env.AUTHORIZATION) {
-      console.warn("Unauthorized access attempt");
-      res.sendStatus(401);
-      return;
-    }
+// Generic authorization middleware
+const requireAuth = (req, res, next) => {
+  const { authorization } = req.headers;
+  if (authorization !== process.env.AUTHORIZATION) {
+    console.warn("Unauthorized access attempt");
+    res.sendStatus(401);
+    return;
+  }
+  next();
+};
 
+// Map endpoint to get unique countries with coordinates
+router.get("/map", requireAuth, async (req, res) => {
+  try {
+    // Aggregate unique countries with their coordinates
+    const uniqueCountries = await IP_model.aggregate([
+      {
+        $match: {
+          "coordinates.lat": { $exists: true, $ne: null },
+          "coordinates.lon": { $exists: true, $ne: null },
+          country: { $exists: true, $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: "$country",
+          lat: { $first: "$coordinates.lat" },
+          lon: { $first: "$coordinates.lon" },
+          countryCode: { $first: "$countryCode" },
+          visitCount: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { visitCount: -1 }
+      }
+    ]);
+
+    // Transform to the requested format: start and end coordinates
+    // Using a reference point (could be your server location or a central point)
+    const referencePoint = { lat: 45.5017, lng: -73.5673 }; // Montreal, Quebec as reference
+    
+    const mapData = uniqueCountries.map(country => ({
+      start: referencePoint,
+      end: { 
+        lat: country.lat, 
+        lng: country.lon 
+      },
+      // Additional data that might be useful for the map
+      country: country._id,
+      countryCode: country.countryCode,
+      visitCount: country.visitCount
+    }));
+
+    res.json(mapData);
+  } catch (err) {
+    console.error("Error fetching map data:", err);
+    res.status(500).json({ error: "Failed to fetch map data" });
+  }
+});
+
+router.get("/{*any}", requireAuth, async (req, res) => {
+  try {
+    const { authid } = req.headers;
     const timestamp = new Date();
     const ip = req.clientIp.split(":").pop();
     const ip_info = (
