@@ -404,48 +404,7 @@ router.get("/{*any}", requireAuth, async (req, res) => {
   }
 });
 
-// Optional: Add endpoint to update nickname
-router.patch("/nickname/:uniqueId", requireAuth, async (req, res) => {
-  try {
-    const { uniqueId } = req.params;
-    const { nickname } = req.body;
-
-    const updated = await UniqueID_model.findOneAndUpdate(
-      { uniqueId },
-      { nickname },
-      { new: true }
-    );
-
-    if (!updated) {
-      res.sendStatus(404);
-      return;
-    }
-
-    res.json({ success: true, uniqueId, nickname });
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(500);
-  }
-});
-
-// Optional: Add endpoint to get unique ID stats
-router.get("/stats/:uniqueId", requireAuth, async (req, res) => {
-  try {
-    const { uniqueId } = req.params;
-    const stats = await UniqueID_model.findOne({ uniqueId });
-
-    if (!stats) {
-      res.sendStatus(404);
-      return;
-    }
-
-    res.json(stats);
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(500);
-  }
-});
-
+//
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
