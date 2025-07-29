@@ -354,8 +354,8 @@ router.get("/{*any}", requireAuth, async (req, res) => {
 
     if (existingRecord) {
       console.warn("IP visited within the last 10 minutes");
-      // res.sendStatus(200);
-      // return;
+      res.sendStatus(200);
+      return;
     }
 
     const html = readFileSync(
