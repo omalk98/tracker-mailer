@@ -16,6 +16,13 @@ import { v4 as uuidv4 } from "uuid";
 // START General Setup
 env_config();
 
+// Cache configuration constants
+const CACHE_DURATION = {
+  DAYS: 30,
+  SECONDS: 30 * 24 * 60 * 60, // 30 days in seconds
+  MILLISECONDS: 30 * 24 * 60 * 60 * 1000 // 30 days in milliseconds
+};
+
 // Database setup
 const CoordinatesSchema = new Schema({
   lat: Number,
@@ -150,6 +157,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const router = express.Router();
 
+// Server-side cache for map data
+let mapDataCache = {
+  data: null,
+  lastUpdated: null,
+  expiry: CACHE_DURATION.MILLISECONDS
+};
+
 // END General Setup
 
 // Generic authorization middleware
@@ -163,48 +177,88 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
+// Function to get cached or fresh map data
+const getMapData = async () => {
+  const now = Date.now();
+  
+  // Check if cache is valid
+  if (mapDataCache.data && mapDataCache.lastUpdated && 
+      (now - mapDataCache.lastUpdated) < mapDataCache.expiry) {
+    console.log('Serving map data from server cache');
+    return mapDataCache.data;
+  }
+  
+  console.log('Fetching fresh map data from database');
+  
+  // Fetch fresh data from database
+  const uniqueCountries = await IP_model.aggregate([
+    {
+      $match: {
+        "coordinates.lat": { $exists: true, $ne: null },
+        "coordinates.lon": { $exists: true, $ne: null },
+        country: { $exists: true, $ne: null }
+      }
+    },
+    {
+      $group: {
+        _id: "$country",
+        lat: { $first: "$coordinates.lat" },
+        lon: { $first: "$coordinates.lon" },
+        countryCode: { $first: "$countryCode" },
+        visitCount: { $sum: 1 }
+      }
+    },
+    {
+      $sort: { visitCount: -1 }
+    }
+  ]);
+
+  // Transform to the requested format
+  const referencePoint = { lat: 45.5017, lng: -73.5673 }; // Montreal, Quebec as reference
+  
+  const mapData = uniqueCountries.map(country => ({
+    start: referencePoint,
+    end: { 
+      lat: country.lat, 
+      lng: country.lon 
+    },
+    country: country._id,
+    countryCode: country.countryCode,
+    visitCount: country.visitCount
+  }));
+
+  // Update cache
+  mapDataCache.data = mapData;
+  mapDataCache.lastUpdated = now;
+  
+  return mapData;
+};
+
 // Map endpoint to get unique countries with coordinates
 router.get("/map", requireAuth, async (req, res) => {
   try {
-    // Aggregate unique countries with their coordinates
-    const uniqueCountries = await IP_model.aggregate([
-      {
-        $match: {
-          "coordinates.lat": { $exists: true, $ne: null },
-          "coordinates.lon": { $exists: true, $ne: null },
-          country: { $exists: true, $ne: null }
-        }
-      },
-      {
-        $group: {
-          _id: "$country",
-          lat: { $first: "$coordinates.lat" },
-          lon: { $first: "$coordinates.lon" },
-          countryCode: { $first: "$countryCode" },
-          visitCount: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { visitCount: -1 }
-      }
-    ]);
-
-    // Transform to the requested format: start and end coordinates
-    // Using a reference point (could be your server location or a central point)
-    const referencePoint = { lat: 45.5017, lng: -73.5673 }; // Montreal, Quebec as reference
+    // Set cache headers for configured duration
+    const cacheTimestamp = Math.floor((mapDataCache.lastUpdated || Date.now()) / (CACHE_DURATION.SECONDS * 1000));
     
-    const mapData = uniqueCountries.map(country => ({
-      start: referencePoint,
-      end: { 
-        lat: country.lat, 
-        lng: country.lon 
-      },
-      // Additional data that might be useful for the map
-      country: country._id,
-      countryCode: country.countryCode,
-      visitCount: country.visitCount
-    }));
+    res.set({
+      'Cache-Control': `public, max-age=${CACHE_DURATION.SECONDS}, s-maxage=${CACHE_DURATION.SECONDS}`,
+      'Expires': new Date(Date.now() + CACHE_DURATION.MILLISECONDS).toUTCString(),
+      'Last-Modified': new Date(mapDataCache.lastUpdated || Date.now()).toUTCString(),
+      'ETag': `"map-data-${cacheTimestamp}"`
+    });
 
+    // Check if client has cached version (304 Not Modified)
+    const clientETag = req.get('If-None-Match');
+    const serverETag = `"map-data-${cacheTimestamp}"`;
+    
+    if (clientETag === serverETag) {
+      res.status(304).end();
+      return;
+    }
+
+    // Get data (from server cache or database)
+    const mapData = await getMapData();
+    
     res.json(mapData);
   } catch (err) {
     console.error("Error fetching map data:", err);
@@ -347,6 +401,48 @@ router.get("/{*any}", requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.sendStatus(200);
+  }
+});
+
+// Optional: Add endpoint to update nickname
+router.patch("/nickname/:uniqueId", requireAuth, async (req, res) => {
+  try {
+    const { uniqueId } = req.params;
+    const { nickname } = req.body;
+
+    const updated = await UniqueID_model.findOneAndUpdate(
+      { uniqueId },
+      { nickname },
+      { new: true }
+    );
+
+    if (!updated) {
+      res.sendStatus(404);
+      return;
+    }
+
+    res.json({ success: true, uniqueId, nickname });
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(500);
+  }
+});
+
+// Optional: Add endpoint to get unique ID stats
+router.get("/stats/:uniqueId", requireAuth, async (req, res) => {
+  try {
+    const { uniqueId } = req.params;
+    const stats = await UniqueID_model.findOne({ uniqueId });
+
+    if (!stats) {
+      res.sendStatus(404);
+      return;
+    }
+
+    res.json(stats);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(500);
   }
 });
 
