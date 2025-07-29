@@ -16,13 +16,6 @@ import { v4 as uuidv4 } from "uuid";
 // START General Setup
 env_config();
 
-// Cache configuration constants
-const CACHE_DURATION = {
-  DAYS: 30,
-  SECONDS: 30 * 24 * 60 * 60, // 30 days in seconds
-  MILLISECONDS: 30 * 24 * 60 * 60 * 1000 // 30 days in milliseconds
-};
-
 // Database setup
 const CoordinatesSchema = new Schema({
   lat: Number,
@@ -157,13 +150,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const router = express.Router();
 
-// Server-side cache for map data
-let mapDataCache = {
-  data: null,
-  lastUpdated: null,
-  expiry: CACHE_DURATION.MILLISECONDS
-};
-
 // END General Setup
 
 // Generic authorization middleware
@@ -179,17 +165,6 @@ const requireAuth = (req, res, next) => {
 
 // Function to get cached or fresh map data
 const getMapData = async () => {
-  const now = Date.now();
-  
-  // Check if cache is valid
-  if (mapDataCache.data && mapDataCache.lastUpdated && 
-      (now - mapDataCache.lastUpdated) < mapDataCache.expiry) {
-    console.log('Serving map data from server cache');
-    return mapDataCache.data;
-  }
-  
-  console.log('Fetching fresh map data from database');
-  
   // Fetch fresh data from database
   const uniqueCountries = await IP_model.aggregate([
     {
@@ -227,35 +202,12 @@ const getMapData = async () => {
     visitCount: country.visitCount
   }));
 
-  // Update cache
-  mapDataCache.data = mapData;
-  mapDataCache.lastUpdated = now;
-  
   return mapData;
 };
 
 // Map endpoint to get unique countries with coordinates
 router.get("/map", requireAuth, async (req, res) => {
   try {
-    // Set cache headers for configured duration
-    const cacheTimestamp = Math.floor((mapDataCache.lastUpdated || Date.now()) / (CACHE_DURATION.SECONDS * 1000));
-    
-    res.set({
-      'Cache-Control': `public, max-age=${CACHE_DURATION.SECONDS}, s-maxage=${CACHE_DURATION.SECONDS}`,
-      'Expires': new Date(Date.now() + CACHE_DURATION.MILLISECONDS).toUTCString(),
-      'Last-Modified': new Date(mapDataCache.lastUpdated || Date.now()).toUTCString(),
-      'ETag': `"map-data-${cacheTimestamp}"`
-    });
-
-    // Check if client has cached version (304 Not Modified)
-    const clientETag = req.get('If-None-Match');
-    const serverETag = `"map-data-${cacheTimestamp}"`;
-    
-    if (clientETag === serverETag) {
-      res.status(304).end();
-      return;
-    }
-
     // Get data (from server cache or database)
     const mapData = await getMapData();
     
