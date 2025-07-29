@@ -10,7 +10,8 @@ import axios from "axios";
 import hb from "handlebars";
 import { createTransport } from "nodemailer";
 import { mw as express_ip } from "request-ip";
-import ua_parser from "ua-parser-js";
+import { UAParser } from "ua-parser-js";
+import { v4 as uuidv4 } from "uuid";
 
 // START General Setup
 env_config();
@@ -82,14 +83,30 @@ const IPSchema = new Schema({
   cpu: {
     type: CPUSchema,
   },
+  uniqueId: String, // Add reference to unique ID
 });
+
+// New schema for tracking unique IDs
+const UniqueIDSchema = new Schema({
+  uniqueId: { type: String, required: true, unique: true },
+  nickname: { type: String, default: "unknown" },
+  counter: { type: Number, default: 1 },
+  createdAt: { type: Date, default: Date.now },
+  lastAccessed: { type: Date, default: Date.now },
+  initialIP: String,
+  initialLocation: {
+    city: String,
+    country: String,
+    countryCode: String,
+  }
+});
+
 const IP_model = model("ip", IPSchema);
+const UniqueID_model = model("uniqueid", UniqueIDSchema);
+
 const database = process.env.MONGO_URI;
 mongoose_set("strictQuery", true);
-mongoose_connect(database, {
-  useUnifiedTopology: true,
-  useNewUrlParser: true,
-}).catch((err) => {
+mongoose_connect(database).catch((err) => {
   throw new Error(err);
 });
 
@@ -135,9 +152,9 @@ const router = express.Router();
 
 // END General Setup
 
-router.get("*", async (req, res) => {
+router.get("/{*any}", async (req, res) => {
   try {
-    const { authorization } = req.headers;
+    const { authorization, authid } = req.headers;
     if (authorization !== process.env.AUTHORIZATION) {
       console.warn("Unauthorized access attempt");
       res.sendStatus(401);
@@ -151,13 +168,15 @@ router.get("*", async (req, res) => {
     ).data;
     const origin = `${req.get("origin") || req.get("host")}${req.originalUrl}`;
     const flag = `https://flagcdn.com/24x18/${ip_info?.countryCode?.toLowerCase()}.png`;
+    const ua = req.get("user-agent");
     const client_info = {
       ip,
       ...ip_info,
       origin,
       flag,
+      mobile: ip_info.mobile || ua.match(/mobi|android|iphone/i) !== null,
     };
-    const user_agent = ua_parser(req.get("user-agent"));
+    const user_agent = UAParser(ua);
     const { lat, lon } = client_info;
     client_info.coordinates = { lat, lon };
     const mapUrl =
@@ -165,16 +184,70 @@ router.get("*", async (req, res) => {
         ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=11&size=300x400&maptype=roadmap&markers=color:red%7C${lat},${lon}&key=${process.env.GOOGLE_API_KEY}`
         : "";
 
+    // Check if request has authid header
+    let uniqueId = null;
+    let isReturningVisitor = false;
+
+    if (authid) {
+      // If authid is provided, try to find and update the counter
+      const existingUniqueID = await UniqueID_model.findOne({ uniqueId: authid });
+      if (existingUniqueID) {
+        existingUniqueID.counter += 1;
+        existingUniqueID.lastAccessed = timestamp;
+        await existingUniqueID.save();
+        uniqueId = authid;
+        isReturningVisitor = true;
+        console.log(`Returning visitor with ID: ${authid}, counter: ${existingUniqueID.counter}`);
+      } else {
+        console.warn(`Invalid authid provided: ${authid}`);
+      }
+    } else {
+      // No authid provided, check if we should generate a new unique ID
+      const isHosting = client_info.hosting;
+      const isVPN = client_info.proxy; // Assuming proxy indicates VPN
+      
+      if (!isHosting && !isVPN) {
+        // Generate new unique ID
+        uniqueId = uuidv4();
+        
+        // Create new unique ID record
+        await UniqueID_model.create({
+          uniqueId,
+          nickname: "unknown",
+          counter: 1,
+          createdAt: timestamp,
+          lastAccessed: timestamp,
+          initialIP: ip,
+          initialLocation: {
+            city: client_info.city,
+            country: client_info.country,
+            countryCode: client_info.countryCode,
+          }
+        });
+        
+        console.log(`New unique ID generated: ${uniqueId} for IP: ${ip}`);
+      } else {
+        console.log(`Skipping unique ID generation - hosting: ${isHosting}, VPN/proxy: ${isVPN}`);
+      }
+    }
+
     const existingRecord = await IP_model.findOne({
       ip: ip,
       timestamp: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
     });
-    await IP_model.create({ ...client_info, ...user_agent, timestamp });
+    
+    // Create IP record with unique ID reference
+    await IP_model.create({ 
+      ...client_info, 
+      ...user_agent, 
+      timestamp,
+      uniqueId: uniqueId || undefined // Only add if uniqueId exists
+    });
 
     if (existingRecord) {
       console.warn("IP visited within the last 10 minutes");
-      res.sendStatus(200);
-      return;
+      // res.sendStatus(200);
+      // return;
     }
 
     const html = readFileSync(
@@ -183,22 +256,40 @@ router.get("*", async (req, res) => {
     );
     const compiled = hb.compile(html);
 
+    // Get unique ID info for email if available
+    let uniqueIdInfo = null;
+    if (uniqueId) {
+      uniqueIdInfo = await UniqueID_model.findOne({ uniqueId });
+    }
+
     const email_content = compiled({
       ...client_info,
       ...user_agent,
       timestamp: timestamp.toLocaleString("en-US", date_options),
       mapUrl,
+      uniqueId,
+      isReturningVisitor,
+      uniqueIdInfo,
     });
 
-    await transporter.sendMail({
+    const subjectPrefix = isReturningVisitor ? "Returning" : "New";
+    const subjectSuffix = uniqueId ? ` (ID: ${uniqueId.substring(0, 8)}...)` : "";
+    
+    const info = await transporter.sendMail({
       from: sender_email,
       to: receiver_email,
-      subject: `New Website Visitor from ${client_info?.city}, ${client_info?.country}!`,
+      subject: `${subjectPrefix} Website Visitor from ${client_info?.city}, ${client_info?.country}${subjectSuffix}`,
       html: email_content,
     });
 
+    console.log("Email sent:", "accepted: ", info.accepted, "rejected: ", info.rejected, "response: ", info.response);
+
     console.log("Email sent successfully");
-    res.sendStatus(200);
+    
+    // Return the unique ID to the client if generated
+    const responseData = uniqueId && !isReturningVisitor ? { uniqueId } : {};
+    res.status(200).json(responseData);
+    
   } catch (err) {
     console.error(err);
     res.sendStatus(200);

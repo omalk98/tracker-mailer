@@ -1,121 +1,386 @@
 <style>
-  .email { text-align: center; width: 100%; height: 100%; background-color:
-  #1f303f; padding: 5px 10px; border-radius: 10px; } .email h1 { color: #fff;
-  padding: 10px 20px; margin: 0; padding-bottom: 30px; text-decoration:
-  underline; } .email-content { padding: 10px 20px; color: #fff; display: flex;
-  justify-content: space-between; } .visitor-location { min-width: 200px;
-  min-height: 400px; margin: 0 20px; } .visitor-location img { min-width: 200px;
-  min-height: 400px; } .visitor-info ul { margin: 0; padding: 0; } .visitor-info
-  hr { margin: 30px 0; } .visitor-info ul li { text-align: right; list-style:
-  none; display: flex; justify-content: space-between; margin: 10px 0;
-  border-radius: 10px; padding: 5px 5px; border: solid 1px #000; box-shadow: 0
-  2px 5px #000; } .visitor-info ul li b { text-align: left; font-size: 14pt;
-  margin-right: 15px; } .visitor-info ul li img { width: 24px; height: 18px; }
-  @media screen and (max-width: 768px) { .email-content { flex-direction:
-  column; justify-content: center; } .visitor-location { margin-top: 30px;
-  margin-left: auto; margin-right: auto; } .visitor-info ul li { flex-direction:
-  column; text-align: center; justify-content: center; } .visitor-info ul li b {
-  text-align: center; margin: 0; } }
+  .email {
+    text-align: center;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    background-color: #1f303f;
+    padding: 20px;
+    border-radius: 15px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
 
+  .email h1 {
+    color: #fff;
+    margin: 0 0 30px 0;
+    font-size: 28px;
+    border-bottom: 2px solid #4a90e2;
+    padding-bottom: 15px;
+  }
+
+  .visitor-status {
+    background: linear-gradient(135deg, #4a90e2, #357abd);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  .unique-id-section {
+    background: linear-gradient(135deg, #28a745, #20863a);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+  }
+
+  .unique-id-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+  }
+
+  .unique-id-value {
+    font-family: 'Courier New', monospace;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 8px;
+    border-radius: 5px;
+    word-break: break-all;
+    font-size: 14px;
+  }
+
+  .visit-counter {
+    background: linear-gradient(135deg, #ffc107, #e0a800);
+    color: #000;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-weight: bold;
+  }
+
+  .email-content {
+    color: #fff;
+  }
+
+  .visitor-location {
+    margin: 25px 0;
+    text-align: center;
+  }
+
+  .visitor-location img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  }
+
+  .visitor-info ul {
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+  }
+
+  .visitor-info hr {
+    margin: 25px 0;
+    border: none;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #4a90e2, transparent);
+  }
+
+  .visitor-info ul li {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+  }
+
+  .visitor-info ul li:hover {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+    transform: translateY(-2px);
+  }
+
+  .visitor-info ul li b {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e8f4fd;
+    min-width: 100px;
+    text-align: left;
+  }
+
+  .visitor-info ul li span {
+    text-align: right;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .visitor-info ul li img {
+    width: 24px;
+    height: 18px;
+    border-radius: 3px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .security-warning {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin: 20px 0;
+    font-weight: bold;
+  }
+
+  .section-title {
+    color: #4a90e2;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: left;
+    margin: 20px 0 15px 0;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(74, 144, 226, 0.3);
+  }
+
+  /* Mobile Optimizations */
+  @media screen and (max-width: 768px) {
+    .email {
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .email h1 {
+      font-size: 24px;
+    }
+
+    .visitor-info ul li {
+      flex-direction: column;
+      text-align: center;
+      gap: 8px;
+      padding: 15px;
+    }
+
+    .visitor-info ul li b {
+      text-align: center;
+      min-width: auto;
+      color: #4a90e2;
+      font-size: 15px;
+    }
+
+    .visitor-info ul li span {
+      text-align: center;
+      font-size: 16px;
+    }
+
+    .unique-id-value {
+      font-size: 12px;
+    }
+
+    .visitor-location {
+      margin: 20px 0;
+    }
+  }
+
+  @media screen and (max-width: 480px) {
+    .email {
+      padding: 10px;
+    }
+
+    .visitor-info ul li {
+      padding: 12px;
+    }
+
+    .unique-id-value {
+      font-size: 11px;
+    }
+  }
 </style>
+
 <div class='email'>
-  <h1>Visitor Info</h1>
+  <h1>
+    {{#if isReturningVisitor}}🔄 Returning{{else}}🆕 New{{/if}} Website Visitor
+  </h1>
+
+  <!-- Visitor Status Banner -->
+  <div class='visitor-status'>
+    {{#if isReturningVisitor}}
+    Welcome back! This visitor has returned to your site.
+    {{else}}
+    Fresh visitor detected on your website!
+    {{/if}}
+  </div>
+
+  <!-- Security Warnings -->
+  {{#if proxy}}
+  <div class='security-warning'>
+    ⚠️ VPN/Proxy Detected - This visitor is using a proxy or VPN service
+  </div>
+  {{/if}}
+
+  {{#if hosting}}
+  <div class='security-warning'>
+    🏢 Hosting Provider - This request appears to come from a hosting/datacenter
+  </div>
+  {{/if}}
+
+  <!-- Unique ID Section -->
+  {{#if uniqueId}}
+  <div class='unique-id-section'>
+    <h3>🆔 Visitor Tracking ID</h3>
+    <div class='unique-id-value'>{{uniqueId}}</div>
+    {{#if uniqueIdInfo}}
+    <div style='margin-top: 10px; font-size: 14px;'>
+      <strong>Nickname:</strong> {{uniqueIdInfo.nickname}}
+    </div>
+    {{#if isReturningVisitor}}
+    <div class='visit-counter'>
+      📊 Visit #{{uniqueIdInfo.counter}} • First seen: {{uniqueIdInfo.createdAt}}
+    </div>
+    {{/if}}
+    {{/if}}
+  </div>
+  {{/if}}
+
   <div class='email-content'>
+    <!-- Map Location -->
+    {{#if mapUrl}}
+    <div class='visitor-location'>
+      <img src='{{mapUrl}}' alt='Visitor Map Location' />
+    </div>
+    {{/if}}
+
     <div class='visitor-info'>
+      <!-- Location Information -->
+      <div class='section-title'>📍 Location Details</div>
       <ul>
         {{#if district}}
-          <li><b>District:</b><span>{{district}}</span></li>
+        <li><b>District:</b><span>{{district}}</span></li>
         {{/if}}
         {{#if city}}
-          <li><b>City:</b><span>{{city}}</span></li>
+        <li><b>City:</b><span>{{city}}</span></li>
         {{/if}}
         {{#if regionName}}
-          <li><b>Region:</b><span>{{regionName}}</span></li>
+        <li><b>Region:</b><span>{{regionName}}</span></li>
         {{/if}}
         {{#if country}}
-          <li>
-            <b>Country:</b>
-            <span>
-              {{country}}
-              <img src={{flag}} />
-            </span>
-          </li>
+        <li>
+          <b>Country:</b>
+          <span>
+            {{country}}
+            <img src='{{flag}}' alt='{{country}} flag' />
+          </span>
+        </li>
         {{/if}}
         {{#if continent}}
-          <li><b>Continent:</b><span>{{continent}}</span></li>
+        <li><b>Continent:</b><span>{{continent}}</span></li>
         {{/if}}
         {{#if zip}}
-          <li><b>Postal:</b><span>{{zip}}</span></li>
+        <li><b>Postal Code:</b><span>{{zip}}</span></li>
         {{/if}}
         {{#if timezone}}
-          <li><b>Timezone:</b><span>{{timezone}}</span></li>
+        <li><b>Timezone:</b><span>{{timezone}}</span></li>
         {{/if}}
         {{#ifAnd lat lon}}
-          <li><b>Coordinates:</b><span>Lat:[{{lat}}] Lon:[{{lon}}]</span></li>
+        <li><b>Coordinates:</b><span>{{lat}}, {{lon}}</span></li>
         {{/ifAnd}}
         {{#if timestamp}}
-          <li><b>Timestamp:</b><span>{{timestamp}}</span></li>
+        <li><b>Visit Time:</b><span>{{timestamp}}</span></li>
         {{/if}}
-        <hr />
-        {{#if query}}
-          <li><b>IP Address:</b>{{query}}</li>
+      </ul>
+
+      <hr />
+
+      <!-- Technical Information -->
+      <div class='section-title'>🌐 Network & Origin</div>
+      <ul>
+        {{#if ip}}
+        <li><b>IP Address:</b><span>{{ip}}</span></li>
         {{/if}}
         {{#if origin}}
-          <li><b>Origin:</b>{{origin}}</li>
-        {{/if}}
-        {{#ifOr os.name os.version ''}}
-          <li><b>OS:</b>
-            {{#if os.name}}{{os.name}}{{/if}}
-            &nbsp;
-            {{#if os.version}}{{os.version}}{{/if}}
-          </li>
-        {{/ifOr}}
-        {{#ifOr browser.name browser.version ''}}
-          <li><b>Browser:</b>
-            {{#if browser.name}}{{browser.name}}{{/if}}
-            &nbsp;
-            {{#if browser.version}}{{browser.version}}{{/if}}
-          </li>
-        {{/ifOr}}
-        {{#ifOr engine.name engine.version ''}}
-          <li><b>Engine:</b>
-            {{#if engine.name}}{{engine.name}}{{/if}}
-            &nbsp;
-            {{#if engine.version}}{{engine.version}}{{/if}}
-          </li>
-        {{/ifOr}}
-        {{#ifOr device.vendor device.model device.type}}
-          <li><b>Device:</b>
-            {{#if device.vendor}}{{device.vendor}}{{/if}}
-            &nbsp;
-            {{#if device.model}}{{device.model}}{{/if}}
-            &nbsp;
-            {{#if device.type}}{{device.type}}{{/if}}
-          </li>
-        {{/ifOr}}
-        {{#if cpu}}
-          <li><b>CPU:</b>{{cpu.architecture}}</li>
-        {{/if}}
-        {{#if ua}}
-          <li><b>User Agent:</b>{{ua}}</li>
+        <li><b>Origin URL:</b><span style='word-break: break-all;'>{{origin}}</span></li>
         {{/if}}
         {{#if isp}}
-          <li><b>ISP:</b> {{isp}}</li>
+        <li><b>ISP:</b><span>{{isp}}</span></li>
         {{/if}}
         {{#if org}}
-          <li><b>Organization:</b>{{org}}</li>
+        <li><b>Organization:</b><span>{{org}}</span></li>
         {{/if}}
         {{#if as}}
-          <li><b>Auto Sys:</b>{{as}}</li>
+        <li><b>AS Number:</b><span>{{as}}</span></li>
         {{/if}}
-        <li><b>Is Mobile:</b>{{#if mobile}}Yes{{else}}No{{/if}}</li>
-        <li><b>Is Proxy:</b>{{#if proxy}}Yes{{else}}No{{/if}}</li>
-        <li><b>Is Hosting:</b>{{#if hosting}}Yes{{else}}No{{/if}}</li>
       </ul>
-    </div>
-    <div class='visitor-location'>
-      {{#if mapUrl}}
-        <img src={{mapUrl}} alt='Visitor Map Location' />
+
+      <hr />
+
+      <!-- Device Information -->
+      <div class='section-title'>📱 Device & Browser</div>
+      <ul>
+        {{#ifOr os.name os.version ''}}
+        <li><b>Operating System:</b>
+          <span>
+            {{#if os.name}}{{os.name}}{{/if}}
+            {{#if os.version}} {{os.version}}{{/if}}
+          </span>
+        </li>
+        {{/ifOr}}
+        {{#ifOr browser.name browser.version ''}}
+        <li><b>Browser:</b>
+          <span>
+            {{#if browser.name}}{{browser.name}}{{/if}}
+            {{#if browser.version}} {{browser.version}}{{/if}}
+          </span>
+        </li>
+        {{/ifOr}}
+        {{#ifOr engine.name engine.version ''}}
+        <li><b>Engine:</b>
+          <span>
+            {{#if engine.name}}{{engine.name}}{{/if}}
+            {{#if engine.version}} {{engine.version}}{{/if}}
+          </span>
+        </li>
+        {{/ifOr}}
+        {{#ifOr device.vendor device.model device.type}}
+        <li><b>Device:</b>
+          <span>
+            {{#if device.vendor}}{{device.vendor}}{{/if}}
+            {{#if device.model}} {{device.model}}{{/if}}
+            {{#if device.type}} ({{device.type}}){{/if}}
+          </span>
+        </li>
+        {{/ifOr}}
+        {{#if cpu.architecture}}
+        <li><b>CPU Architecture:</b><span>{{cpu.architecture}}</span></li>
+        {{/if}}
+        <li><b>Mobile Device:</b><span>{{#if mobile}}✅ Yes{{else}}❌ No{{/if}}</span></li>
+      </ul>
+
+      <hr />
+
+      <!-- Security Information -->
+      <div class='section-title'>🔒 Security Analysis</div>
+      <ul>
+        <li><b>Proxy/VPN:</b><span>{{#if proxy}}⚠️ Detected{{else}}✅ Clean{{/if}}</span></li>
+        <li><b>Hosting Provider:</b><span>{{#if hosting}}⚠️ Yes{{else}}✅ No{{/if}}</span></li>
+      </ul>
+
+      {{#if ua}}
+      <hr />
+      <div class='section-title'>🔍 Technical Details</div>
+      <ul>
+        <li style='flex-direction: column; align-items: flex-start; gap: 10px;'>
+          <b>User Agent:</b>
+          <span
+            style='font-family: monospace; font-size: 12px; word-break: break-all; text-align: left; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 5px;'>{{ua}}</span>
+        </li>
+      </ul>
       {{/if}}
     </div>
   </div>
