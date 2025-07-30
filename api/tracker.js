@@ -154,6 +154,7 @@ const router = express.Router();
 
 // Generic authorization middleware
 const requireAuth = (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Headers', 'authid, authorization');
   const { authorization } = req.headers;
   if (authorization !== process.env.AUTHORIZATION) {
     console.warn("Unauthorized access attempt");
@@ -189,8 +190,8 @@ const getMapData = async () => {
   ]);
 
   // Transform to the requested format
-  const referencePoint = { lat: 45.5017, lng: -73.5673 }; // Montreal, Quebec as reference
-  
+  const referencePoint = { lat: 43.6532, lng: -79.3832 }; // Toronto as reference
+
   const mapData = uniqueCountries.map(country => ({
     start: referencePoint,
     end: { 
