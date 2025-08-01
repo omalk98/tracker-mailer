@@ -343,8 +343,6 @@ router.get("/{*any}", requireAuth, async (req, res) => {
       html: email_content,
     });
 
-    console.log("Email sent:", "accepted: ", info.accepted, "rejected: ", info.rejected, "response: ", info.response);
-
     console.log("Email sent successfully");
     
     // Return the unique ID to the client if generated
