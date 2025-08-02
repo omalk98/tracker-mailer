@@ -84,12 +84,12 @@ const IPSchema = new Schema({
   cpu: {
     type: CPUSchema,
   },
-  uniqueId: String, // Add reference to unique ID
+  vid: String, // Add reference to VID
 });
 
-// New schema for tracking unique IDs
-const UniqueIDSchema = new Schema({
-  uniqueId: { type: String, required: true, unique: true },
+// New schema for tracking VIDs
+const VIDSchema = new Schema({
+  vid: { type: String, required: true, unique: true },
   nickname: { type: String, default: "unknown" },
   counter: { type: Number, default: 1 },
   createdAt: { type: Date, default: Date.now },
@@ -103,7 +103,7 @@ const UniqueIDSchema = new Schema({
 });
 
 const IP_model = model("ip", IPSchema);
-const UniqueID_model = model("uniqueid", UniqueIDSchema);
+const VID_model = model("vid", VIDSchema);
 
 const database = process.env.MONGO_URI;
 mongoose_set("strictQuery", true);
@@ -155,12 +155,16 @@ const router = express.Router();
 
 // Generic authorization middleware
 const requireAuth = (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Headers', 'authid, authorization');
   const { authorization } = req.headers;
-  if (authorization !== process.env.AUTHORIZATION) {
+  const [authToken, vid] = authorization ? authorization.split("-") : [];
+
+  if (authToken !== process.env.AUTHORIZATION) {
     console.warn("Unauthorized access attempt");
     res.sendStatus(401);
     return;
+  }
+  if (vid) {
+    req.headers.authid = vid; // Pass the VID as authid
   }
   next();
 };
@@ -248,32 +252,32 @@ router.get("/{*any}", requireAuth, async (req, res) => {
         : "";
 
     // Check if request has authid header
-    let uniqueId = null;
+    let vid = null;
     let isReturningVisitor = false;
 
     if (authid) {
       // If authid is provided, try to find and update the counter
-      const existingUniqueID = await UniqueID_model.findOne({ uniqueId: authid });
-      if (existingUniqueID) {
-        existingUniqueID.counter += 1;
-        existingUniqueID.lastAccessed = timestamp;
-        await existingUniqueID.save();
-        uniqueId = authid;
+      const existingVID = await VID_model.findOne({ vid: authid });
+      if (existingVID) {
+        existingVID.counter += 1;
+        existingVID.lastAccessed = timestamp;
+        await existingVID.save();
+        vid = authid;
         isReturningVisitor = true;
-        console.log(`Returning visitor with ID: ${authid}, counter: ${existingUniqueID.counter}`);
+        console.log(`Returning visitor with ID: ${authid}, counter: ${existingVID.counter}`);
       } else {
         console.warn(`Invalid authid provided: ${authid}`);
       }
     } else {
-      // No authid provided, check if we should generate a new unique ID
+      // No authid provided, check if we should generate a new VID
       // Allow VPN's
       if (!client_info.hosting && !client_info.bot) {
-        // Generate new unique ID
-        uniqueId = uuidv4();
-        
-        // Create new unique ID record
-        await UniqueID_model.create({
-          uniqueId,
+        // Generate new VID
+        vid = uuidv4().replace(/-/g, "");
+
+        // Create new VID record
+        await VID_model.create({
+          vid: vid,
           nickname: "unknown",
           counter: 1,
           createdAt: timestamp,
@@ -286,9 +290,9 @@ router.get("/{*any}", requireAuth, async (req, res) => {
           }
         });
         
-        console.log(`New unique ID generated: ${uniqueId} for IP: ${ip}`);
+        console.log(`New VID generated: ${vid} for IP: ${ip}`);
       } else {
-        console.log(`Skipping unique ID generation - hosting: ${client_info.hosting}, bot: ${client_info.bot}`);
+        console.log(`Skipping VID generation - hosting: ${client_info.hosting}, bot: ${client_info.bot}`);
       }
     }
 
@@ -297,12 +301,12 @@ router.get("/{*any}", requireAuth, async (req, res) => {
       timestamp: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
     });
     
-    // Create IP record with unique ID reference
+    // Create IP record with VID reference
     await IP_model.create({ 
       ...client_info, 
       ...user_agent, 
       timestamp,
-      uniqueId: uniqueId || undefined // Only add if uniqueId exists
+      vid: vid || undefined // Only add if vid exists
     });
 
     if (existingRecord && authid) {
@@ -317,10 +321,10 @@ router.get("/{*any}", requireAuth, async (req, res) => {
     );
     const compiled = hb.compile(html);
 
-    // Get unique ID info for email if available
-    let uniqueIdInfo = null;
-    if (uniqueId) {
-      uniqueIdInfo = await UniqueID_model.findOne({ uniqueId });
+    // Get VID info for email if available
+    let VIDInfo = null;
+    if (vid) {
+      VIDInfo = await VID_model.findOne({ vid });
     }
 
     const email_content = compiled({
@@ -328,13 +332,13 @@ router.get("/{*any}", requireAuth, async (req, res) => {
       ...user_agent,
       timestamp: timestamp.toLocaleString("en-US", date_options),
       mapUrl,
-      uniqueId,
+      vid,
       isReturningVisitor,
-      uniqueIdInfo,
+      VIDInfo,
     });
 
     const subjectPrefix = isReturningVisitor ? "Returning" : "New";
-    const subjectSuffix = uniqueId ? ` (ID: ${uniqueId.substring(0, 8)}...)` : "";
+    const subjectSuffix = vid ? ` (ID: ${vid.substring(0, 8)}...)` : "";
     
     await transporter.sendMail({
       from: sender_email,
@@ -344,9 +348,9 @@ router.get("/{*any}", requireAuth, async (req, res) => {
     });
 
     console.log("Email sent successfully");
-    
-    // Return the unique ID to the client if generated
-    const responseData = uniqueId && !isReturningVisitor ? { uniqueId } : {};
+
+    // Return the VID to the client if generated
+    const responseData = vid && !isReturningVisitor ? { vid } : {};
     res.status(200).json(responseData);
     
   } catch (err) {

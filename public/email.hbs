@@ -29,7 +29,7 @@
     font-weight: bold;
   }
 
-  .unique-id-section {
+  .vid-section {
     background: linear-gradient(135deg, #28a745, #20863a);
     color: white;
     padding: 15px;
@@ -37,12 +37,12 @@
     margin-bottom: 25px;
   }
 
-  .unique-id-section h3 {
+  .vid-section h3 {
     margin: 0 0 10px 0;
     font-size: 16px;
   }
 
-  .unique-id-value {
+  .vid-value {
     font-family: 'Courier New', monospace;
     background: rgba(255, 255, 255, 0.2);
     padding: 8px;
@@ -180,7 +180,7 @@
       font-size: 16px;
     }
 
-    .unique-id-value {
+    .vid-value {
       font-size: 12px;
     }
 
@@ -198,7 +198,7 @@
       padding: 12px;
     }
 
-    .unique-id-value {
+    .vid-value {
       font-size: 11px;
     }
   }
@@ -231,18 +231,18 @@
   </div>
   {{/if}}
 
-  <!-- Unique ID Section -->
-  {{#if uniqueId}}
-  <div class='unique-id-section'>
+  <!-- VID Section -->
+  {{#if vid}}
+  <div class='vid-section'>
     <h3>🆔 Visitor Tracking ID</h3>
-    <div class='unique-id-value'>{{uniqueId}}</div>
-    {{#if uniqueIdInfo}}
+    <div class='vid-value'>{{vid}}</div>
+    {{#if VIDInfo}}
     <div style='margin-top: 10px; font-size: 14px;'>
-      <strong>Nickname:</strong> {{uniqueIdInfo.nickname}}
+      <strong>Nickname:</strong> {{VIDInfo.nickname}}
     </div>
     {{#if isReturningVisitor}}
     <div class='visit-counter'>
-      📊 Visit #{{uniqueIdInfo.counter}} • First seen: {{uniqueIdInfo.createdAt}}
+      📊 Visit #{{VIDInfo.counter}} • First seen: {{VIDInfo.createdAt}}
     </div>
     {{/if}}
     {{/if}}
