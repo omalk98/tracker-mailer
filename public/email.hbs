@@ -231,6 +231,12 @@
   </div>
   {{/if}}
 
+  {{#if bot}}
+  <div class='security-warning'>
+    🤖 Bot Detected - This visitor is likely a bot, crawler, or automated script
+  </div>
+  {{/if}}
+
   <!-- VID Section -->
   {{#if vid}}
   <div class='vid-section'>
@@ -238,7 +244,9 @@
     <div class='vid-value'>{{vid}}</div>
     {{#if VIDInfo}}
     <div style='margin-top: 10px; font-size: 14px;'>
+      {{#if VIDInfo.nickname}}
       <strong>Nickname:</strong> {{VIDInfo.nickname}}
+      {{/if}}
     </div>
     {{#if isReturningVisitor}}
     <div class='visit-counter'>
