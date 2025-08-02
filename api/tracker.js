@@ -63,6 +63,7 @@ const IPSchema = new Schema({
   mobile: Boolean,
   proxy: Boolean,
   hosting: Boolean,
+  bot: Boolean,
   origin: String,
   ua: String,
   coordinates: {
@@ -240,6 +241,7 @@ router.get("/{*any}", requireAuth, async (req, res) => {
     const user_agent = UAParser(ua);
     const { lat, lon } = client_info;
     client_info.coordinates = { lat, lon };
+    client_info.bot = user_agent.ua.includes("bot") || user_agent.ua.includes("crawler");
     const mapUrl =
       lat && lon
         ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=11&size=300x400&maptype=roadmap&markers=color:red%7C${lat},${lon}&key=${process.env.GOOGLE_API_KEY}`
@@ -264,10 +266,8 @@ router.get("/{*any}", requireAuth, async (req, res) => {
       }
     } else {
       // No authid provided, check if we should generate a new unique ID
-      const isHosting = client_info.hosting;
-      const isVPN = client_info.proxy; // Assuming proxy indicates VPN
-      
-      if (!isHosting && !isVPN) {
+      // Allow VPN's
+      if (!client_info.hosting && !client_info.bot) {
         // Generate new unique ID
         uniqueId = uuidv4();
         
@@ -288,7 +288,7 @@ router.get("/{*any}", requireAuth, async (req, res) => {
         
         console.log(`New unique ID generated: ${uniqueId} for IP: ${ip}`);
       } else {
-        console.log(`Skipping unique ID generation - hosting: ${isHosting}, VPN/proxy: ${isVPN}`);
+        console.log(`Skipping unique ID generation - hosting: ${client_info.hosting}, bot: ${client_info.bot}`);
       }
     }
 
@@ -305,7 +305,7 @@ router.get("/{*any}", requireAuth, async (req, res) => {
       uniqueId: uniqueId || undefined // Only add if uniqueId exists
     });
 
-    if (existingRecord) {
+    if (existingRecord && authid) {
       console.warn("IP visited within the last 10 minutes");
       res.sendStatus(200);
       return;
@@ -336,7 +336,7 @@ router.get("/{*any}", requireAuth, async (req, res) => {
     const subjectPrefix = isReturningVisitor ? "Returning" : "New";
     const subjectSuffix = uniqueId ? ` (ID: ${uniqueId.substring(0, 8)}...)` : "";
     
-    const info = await transporter.sendMail({
+    await transporter.sendMail({
       from: sender_email,
       to: receiver_email,
       subject: `${subjectPrefix} Website Visitor from ${client_info?.city}, ${client_info?.country}${subjectSuffix}`,
