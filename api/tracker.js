@@ -99,7 +99,7 @@ const VIDSchema = new Schema({
     city: String,
     country: String,
     countryCode: String,
-  }
+  },
 });
 
 const IP_model = model("ip", IPSchema);
@@ -177,8 +177,8 @@ const getMapData = async () => {
       $match: {
         "coordinates.lat": { $exists: true, $ne: null },
         "coordinates.lon": { $exists: true, $ne: null },
-        country: { $exists: true, $ne: null }
-      }
+        country: { $exists: true, $ne: null },
+      },
     },
     {
       $group: {
@@ -186,26 +186,26 @@ const getMapData = async () => {
         lat: { $first: "$coordinates.lat" },
         lon: { $first: "$coordinates.lon" },
         countryCode: { $first: "$countryCode" },
-        visitCount: { $sum: 1 }
-      }
+        visitCount: { $sum: 1 },
+      },
     },
     {
-      $sort: { visitCount: -1 }
-    }
+      $sort: { visitCount: -1 },
+    },
   ]);
 
   // Transform to the requested format
   const referencePoint = { lat: 43.6532, lng: -79.3832 }; // Toronto as reference
 
-  const mapData = uniqueCountries.map(country => ({
+  const mapData = uniqueCountries.map((country) => ({
     start: referencePoint,
-    end: { 
-      lat: country.lat, 
-      lng: country.lon 
+    end: {
+      lat: country.lat,
+      lng: country.lon,
     },
     country: country._id,
     countryCode: country.countryCode,
-    visitCount: country.visitCount
+    visitCount: country.visitCount,
   }));
 
   return mapData;
@@ -216,7 +216,7 @@ router.get("/map", requireAuth, async (req, res) => {
   try {
     // Get data (from server cache or database)
     const mapData = await getMapData();
-    
+
     res.json(mapData);
   } catch (err) {
     console.error("Error fetching map data:", err);
@@ -245,7 +245,8 @@ router.get("/{*any}", requireAuth, async (req, res) => {
     const user_agent = UAParser(ua);
     const { lat, lon } = client_info;
     client_info.coordinates = { lat, lon };
-    client_info.bot = user_agent.ua.includes("bot") || user_agent.ua.includes("crawler");
+    client_info.bot =
+      user_agent.ua.includes("bot") || user_agent.ua.includes("crawler");
     const mapUrl =
       lat && lon
         ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=11&size=300x400&maptype=roadmap&markers=color:red%7C${lat},${lon}&key=${process.env.GOOGLE_API_KEY}`
@@ -264,7 +265,9 @@ router.get("/{*any}", requireAuth, async (req, res) => {
         await existingVID.save();
         vid = authid;
         isReturningVisitor = true;
-        console.log(`Returning visitor with ID: ${authid}, counter: ${existingVID.counter}`);
+        console.log(
+          `Returning visitor with ID: ${authid}, counter: ${existingVID.counter}`
+        );
       } else {
         console.warn(`Invalid authid provided: ${authid}`);
       }
@@ -287,12 +290,14 @@ router.get("/{*any}", requireAuth, async (req, res) => {
             city: client_info.city,
             country: client_info.country,
             countryCode: client_info.countryCode,
-          }
+          },
         });
-        
+
         console.log(`New VID generated: ${vid} for IP: ${ip}`);
       } else {
-        console.log(`Skipping VID generation - hosting: ${client_info.hosting}, bot: ${client_info.bot}`);
+        console.log(
+          `Skipping VID generation - hosting: ${client_info.hosting}, bot: ${client_info.bot}`
+        );
       }
     }
 
@@ -300,13 +305,13 @@ router.get("/{*any}", requireAuth, async (req, res) => {
       ip: ip,
       timestamp: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
     });
-    
+
     // Create IP record with VID reference
-    await IP_model.create({ 
-      ...client_info, 
-      ...user_agent, 
+    await IP_model.create({
+      ...client_info,
+      ...user_agent,
       timestamp,
-      vid: vid || undefined // Only add if vid exists
+      vid: vid || undefined, // Only add if vid exists
     });
 
     if (existingRecord && authid) {
@@ -324,7 +329,14 @@ router.get("/{*any}", requireAuth, async (req, res) => {
     // Get VID info for email if available
     let VIDInfo = null;
     if (vid) {
-      VIDInfo = await VID_model.findOne({ vid });
+      const data = await VID_model.findOne({ vid });
+      if (data) {
+        VIDInfo = {
+          nickname: data.nickname,
+          createdAt: data.createdAt,
+          counter: data.counter,
+        };
+      }
     }
 
     const email_content = compiled({
@@ -339,7 +351,7 @@ router.get("/{*any}", requireAuth, async (req, res) => {
 
     const subjectPrefix = isReturningVisitor ? "Returning" : "New";
     const subjectSuffix = vid ? ` (ID: ${vid.substring(0, 8)}...)` : "";
-    
+
     await transporter.sendMail({
       from: sender_email,
       to: receiver_email,
@@ -352,7 +364,6 @@ router.get("/{*any}", requireAuth, async (req, res) => {
     // Return the VID to the client if generated
     const responseData = vid && !isReturningVisitor ? { vid } : {};
     res.status(200).json(responseData);
-    
   } catch (err) {
     console.error(err);
     res.sendStatus(200);
