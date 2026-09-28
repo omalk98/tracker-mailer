@@ -1,380 +1,168 @@
-import { config as env_config } from "dotenv";
-import { readFileSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
-import express from "express";
-import { Schema, model } from "mongoose";
+import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import cors from "cors";
-import { connect as mongoose_connect, set as mongoose_set } from "mongoose";
-import axios from "axios";
-import hb from "handlebars";
+import { config as loadEnv } from "dotenv";
+import express from "express";
+import rateLimit from "express-rate-limit";
+import Handlebars from "handlebars";
+import mongoose from "mongoose";
 import { createTransport } from "nodemailer";
-import { mw as express_ip } from "request-ip";
 import { UAParser } from "ua-parser-js";
-import { v4 as uuidv4 } from "uuid";
+import { Event, IpEnrichment, LegacyIp, Session, Visitor } from "./models.js";
+import { canResumeSession, classifyUserAgent, eventSchema, normalizeIp, shouldNotify } from "./tracking.js";
 
-// START General Setup
-env_config();
+loadEnv();
+mongoose.set("strictQuery", true);
+mongoose.connect(process.env.MONGO_URI).catch((error) => console.error("MongoDB connection failed:", error));
 
-// Database setup
-const CoordinatesSchema = new Schema({
-  lat: Number,
-  lon: Number,
-});
-const DeviceSchema = new Schema({
-  model: String,
-  type: String,
-  vendor: String,
-});
-const OSSchema = new Schema({
-  name: String,
-  version: String,
-});
-const BrowserSchema = new Schema({
-  name: String,
-  version: String,
-  major: String,
-});
-const EngineSchema = new Schema({
-  name: String,
-  version: String,
-});
-const CPUSchema = new Schema({
-  architecture: String,
-});
+const app = express();
+app.set("trust proxy", 1);
+app.use(cors({ origin: "*" }));
+app.use(express.json({ limit: "16kb" }));
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 120, standardHeaders: "draft-8", legacyHeaders: false }));
 
-const IPSchema = new Schema({
-  ip: { type: String, required: true, immutable: true },
-  timestamp: {
-    type: Date,
-    required: true,
-    immutable: true,
-  },
-  district: String,
-  city: String,
-  regionName: String,
-  country: String,
-  countryCode: String,
-  continent: String,
-  zip: String,
-  isp: String,
-  org: String,
-  as: String,
-  mobile: Boolean,
-  proxy: Boolean,
-  hosting: Boolean,
-  bot: Boolean,
-  origin: String,
-  ua: String,
-  coordinates: {
-    type: CoordinatesSchema,
-  },
-  os: {
-    type: OSSchema,
-  },
-  browser: {
-    type: BrowserSchema,
-  },
-  engine: {
-    type: EngineSchema,
-  },
-  device: {
-    type: DeviceSchema,
-  },
-  cpu: {
-    type: CPUSchema,
-  },
-  vid: String, // Add reference to VID
-});
-
-// New schema for tracking VIDs
-const VIDSchema = new Schema({
-  vid: { type: String, required: true, unique: true },
-  nickname: { type: String, default: "unknown" },
-  counter: { type: Number, default: 1 },
-  createdAt: { type: Date, default: Date.now },
-  lastAccessed: { type: Date, default: Date.now },
-  initialIP: String,
-  initialLocation: {
-    city: String,
-    country: String,
-    countryCode: String,
-  },
-});
-
-const IP_model = model("ip", IPSchema);
-const VID_model = model("vid", VIDSchema);
-
-const database = process.env.MONGO_URI;
-mongoose_set("strictQuery", true);
-mongoose_connect(database).catch((err) => {
-  throw new Error(err);
-});
-
-// Mailer setup
-const sender_email = process.env.SENDER_EMAIL;
-const sender_password = process.env.SENDER_PASSWORD;
-const receiver_email = process.env.RECEIVER_EMAIL;
 const transporter = createTransport({
   service: "gmail",
-  auth: {
-    user: sender_email,
-    pass: sender_password,
-  },
+  auth: { user: process.env.SENDER_EMAIL, pass: process.env.SENDER_PASSWORD },
 });
+const template = Handlebars.compile(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../public/email.hbs"), "utf8"));
 
-// Handlebars setup
-hb.registerHelper("ifAnd", function (v1, v2, options) {
-  if (v1 && v2) {
-    return options.fn(this);
-  }
-  return options.inverse(this);
-});
-hb.registerHelper("ifOr", function (v1, v2, v3, options) {
-  if (v1 || v2 || v3) {
-    return options.fn(this);
-  }
-  return options.inverse(this);
-});
-
-// Server setup
-const date_options = {
-  weekday: "short",
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "numeric",
-  timeZone: "America/Toronto",
-};
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const app = express();
-const router = express.Router();
-
-// END General Setup
-
-// Generic authorization middleware
-const requireAuth = (req, res, next) => {
-  const { authorization } = req.headers;
-  const [authToken, vid] = authorization ? authorization.split("-") : [];
-
-  if (authToken !== process.env.AUTHORIZATION) {
-    console.warn("Unauthorized access attempt");
-    res.sendStatus(401);
-    return;
-  }
-  if (vid) {
-    req.headers.authid = vid; // Pass the VID as authid
-  }
+function requireAuth(req, res, next) {
+  if (req.get("authorization") !== process.env.AUTHORIZATION) return res.sendStatus(401);
   next();
-};
+}
 
-// Function to get cached or fresh map data
-const getMapData = async () => {
-  // Fetch fresh data from database
-  const uniqueCountries = await IP_model.aggregate([
-    {
-      $match: {
-        "coordinates.lat": { $exists: true, $ne: null },
-        "coordinates.lon": { $exists: true, $ne: null },
-        country: { $exists: true, $ne: null },
-      },
-    },
-    {
-      $group: {
-        _id: "$country",
-        lat: { $first: "$coordinates.lat" },
-        lon: { $first: "$coordinates.lon" },
-        countryCode: { $first: "$countryCode" },
-        visitCount: { $sum: 1 },
-      },
-    },
-    {
-      $sort: { visitCount: -1 },
-    },
-  ]);
-
-  // Transform to the requested format
-  const referencePoint = { lat: 43.6532, lng: -79.3832 }; // Toronto as reference
-
-  const mapData = uniqueCountries.map((country) => ({
-    start: referencePoint,
-    end: {
-      lat: country.lat,
-      lng: country.lon,
-    },
-    country: country._id,
-    countryCode: country.countryCode,
-    visitCount: country.visitCount,
-  }));
-
-  return mapData;
-};
-
-// Map endpoint to get unique countries with coordinates
-router.get("/map", requireAuth, async (req, res) => {
+async function enrichIp(ip) {
+  if (!ip) return {};
+  const cached = await IpEnrichment.findOne({ ip, expiresAt: { $gt: new Date() } }).lean();
+  if (cached) return cached.data;
   try {
-    // Get data (from server cache or database)
-    const mapData = await getMapData();
+    const response = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=18575355`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) return {};
+    const data = await response.json();
+    if (data.status === "fail") return {};
+    await IpEnrichment.findOneAndUpdate(
+      { ip },
+      { ip, data, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+      { upsert: true }
+    );
+    return data;
+  } catch (error) {
+    console.warn("IP enrichment failed:", error.message);
+    return {};
+  }
+}
 
-    res.json(mapData);
-  } catch (err) {
-    console.error("Error fetching map data:", err);
+async function resolveVisitor(visitorId, timestamp, ip, location) {
+  if (visitorId) {
+    const visitor = await Visitor.findOneAndUpdate({ visitorId }, { lastSeen: timestamp }, { new: true });
+    if (visitor) return visitor;
+  }
+  return Visitor.create({
+    visitorId: randomUUID(), createdAt: timestamp, lastSeen: timestamp,
+    sessionCount: 0, initialIp: ip, initialLocation: location,
+  });
+}
+
+async function resolveSession({ sessionId, visitorId, timestamp, classification, ip, userAgent, client, context, enrichment }) {
+  if (sessionId) {
+    const session = await Session.findOne({ sessionId });
+    if (session && session.visitorId === visitorId && canResumeSession(session.lastActivity, timestamp)) {
+      session.lastActivity = timestamp;
+      await session.save();
+      return { session, isNewSession: false };
+    }
+  }
+  const session = await Session.create({
+    sessionId: randomUUID(), visitorId, startedAt: timestamp, lastActivity: timestamp,
+    classification, ip, userAgent, client, context, location: enrichment, network: enrichment,
+  });
+  if (visitorId) await Visitor.updateOne({ visitorId }, { $inc: { sessionCount: 1 } });
+  return { session, isNewSession: true };
+}
+
+async function sendSummary({ visitor, session, event }) {
+  const events = await Event.find({ sessionId: session.sessionId }).sort({ occurredAt: 1 }).lean();
+  await transporter.sendMail({
+    from: process.env.SENDER_EMAIL,
+    to: process.env.RECEIVER_EMAIL,
+    subject: `${event.type === "page_view" ? "New" : "Updated"} portfolio session from ${session.location?.city || "unknown location"}`,
+    html: template({ visitor: visitor?.toObject(), session: session.toObject(), events }),
+  });
+}
+
+app.get("/map", requireAuth, async (_req, res) => {
+  try {
+    const group = (prefix) => [
+      { $match: {
+        ...(prefix === "location" ? { classification: "human" } : {}),
+        [`${prefix}.lat`]: { $ne: null },
+        [`${prefix}.lon`]: { $ne: null },
+      } },
+      { $group: {
+        _id: `$${prefix === "location" ? "location.country" : "country"}`,
+        lat: { $first: `$${prefix}.lat` }, lon: { $first: `$${prefix}.lon` },
+        countryCode: { $first: `$${prefix === "location" ? "location.countryCode" : "countryCode"}` },
+        visitCount: { $sum: 1 },
+      } },
+    ];
+    const [sessions, legacy] = await Promise.all([
+      Session.aggregate(group("location")), LegacyIp.aggregate(group("coordinates")),
+    ]);
+    const countries = new Map();
+    for (const country of [...legacy, ...sessions]) {
+      const current = countries.get(country._id);
+      countries.set(country._id, { ...country, visitCount: country.visitCount + (current?.visitCount || 0) });
+    }
+    res.json([...countries.values()].sort((a, b) => b.visitCount - a.visitCount).map((country) => ({
+      start: { lat: 43.6532, lng: -79.3832 },
+      end: { lat: country.lat, lng: country.lon },
+      country: country._id, countryCode: country.countryCode, visitCount: country.visitCount,
+    })));
+  } catch (error) {
+    console.error("Map query failed:", error);
     res.status(500).json({ error: "Failed to fetch map data" });
   }
 });
 
-router.get("/{*any}", requireAuth, async (req, res) => {
+app.post("/events", requireAuth, async (req, res) => {
+  const parsed = eventSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid event", details: parsed.error.issues });
   try {
-    const { authid } = req.headers;
+    const data = parsed.data;
     const timestamp = new Date();
-    const ip = req.clientIp.split(":").pop();
-    const ip_info = (
-      await axios.get(`http://ip-api.com/json/${ip}?fields=18575355`)
-    ).data;
-    const origin = `${req.get("origin") || req.get("host")}${req.originalUrl}`;
-    const flag = `https://flagcdn.com/24x18/${ip_info?.countryCode?.toLowerCase()}.png`;
-    const ua = req.get("user-agent");
-    const client_info = {
-      ip,
-      ...ip_info,
-      origin,
-      flag,
-      mobile: ip_info.mobile || ua.match(/mobi|android|iphone/i) !== null,
-    };
-    const user_agent = UAParser(ua);
-    const { lat, lon } = client_info;
-    client_info.coordinates = { lat, lon };
-    client_info.bot =
-      user_agent.ua.includes("bot") || user_agent.ua.includes("crawler");
-    const mapUrl =
-      lat && lon
-        ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=11&size=300x400&maptype=roadmap&markers=color:red%7C${lat},${lon}&key=${process.env.GOOGLE_API_KEY}`
-        : "";
-
-    // Check if request has authid header
-    let vid = null;
-    let isReturningVisitor = false;
-
-    if (authid) {
-      // If authid is provided, try to find and update the counter
-      const existingVID = await VID_model.findOne({ vid: authid });
-      if (existingVID) {
-        existingVID.counter += 1;
-        existingVID.lastAccessed = timestamp;
-        await existingVID.save();
-        vid = authid;
-        isReturningVisitor = true;
-        console.log(
-          `Returning visitor with ID: ${authid}, counter: ${existingVID.counter}`
-        );
-      } else {
-        console.warn(`Invalid authid provided: ${authid}`);
-      }
-    } else {
-      // No authid provided, check if we should generate a new VID
-      // Allow VPN's
-      if (!client_info.hosting && !client_info.bot) {
-        // Generate new VID
-        vid = uuidv4().replace(/-/g, "");
-
-        // Create new VID record
-        await VID_model.create({
-          vid: vid,
-          nickname: "unknown",
-          counter: 1,
-          createdAt: timestamp,
-          lastAccessed: timestamp,
-          initialIP: ip,
-          initialLocation: {
-            city: client_info.city,
-            country: client_info.country,
-            countryCode: client_info.countryCode,
-          },
-        });
-
-        console.log(`New VID generated: ${vid} for IP: ${ip}`);
-      } else {
-        console.log(
-          `Skipping VID generation - hosting: ${client_info.hosting}, bot: ${client_info.bot}`
-        );
+    const userAgent = req.get("user-agent") || "";
+    const client = UAParser(userAgent);
+    const classification = classifyUserAgent(userAgent);
+    const ip = normalizeIp(req.ip);
+    const enrichment = await enrichIp(ip);
+    const visitor = classification === "human"
+      ? await resolveVisitor(data.visitorId, timestamp, ip, enrichment)
+      : null;
+    const { session, isNewSession } = await resolveSession({
+      sessionId: data.sessionId, visitorId: visitor?.visitorId, timestamp, classification,
+      ip, userAgent, client, context: data.context, enrichment,
+    });
+    const event = await Event.create({
+      visitorId: visitor?.visitorId, sessionId: session.sessionId, type: data.type,
+      page: data.page, occurredAt: new Date(data.occurredAt), receivedAt: timestamp, metadata: data.metadata,
+    });
+    if (shouldNotify({ classification, isNewSession, type: data.type })) {
+      try {
+        await sendSummary({ visitor, session, event });
+      } catch (error) {
+        console.error("Session notification failed:", error);
       }
     }
-
-    const existingRecord = await IP_model.findOne({
-      ip: ip,
-      timestamp: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
-    });
-
-    // Create IP record with VID reference
-    await IP_model.create({
-      ...client_info,
-      ...user_agent,
-      timestamp,
-      vid: vid || undefined, // Only add if vid exists
-    });
-
-    if (existingRecord && authid) {
-      console.warn("IP visited within the last 10 minutes");
-      res.sendStatus(200);
-      return;
-    }
-
-    const html = readFileSync(
-      join(__dirname, "../public", "email.hbs"),
-      "utf-8"
-    );
-    const compiled = hb.compile(html);
-
-    // Get VID info for email if available
-    let VIDInfo = null;
-    if (vid) {
-      const data = await VID_model.findOne({ vid });
-      if (data) {
-        VIDInfo = {
-          nickname: data.nickname,
-          createdAt: data.createdAt,
-          counter: data.counter,
-        };
-      }
-    }
-
-    const email_content = compiled({
-      ...client_info,
-      ...user_agent,
-      timestamp: timestamp.toLocaleString("en-US", date_options),
-      mapUrl,
-      vid,
-      isReturningVisitor,
-      VIDInfo,
-    });
-
-    const subjectPrefix = isReturningVisitor ? "Returning" : "New";
-    const subjectSuffix = vid ? ` (ID: ${vid.substring(0, 8)}...)` : "";
-
-    await transporter.sendMail({
-      from: sender_email,
-      to: receiver_email,
-      subject: `${subjectPrefix} Website Visitor from ${client_info?.city}, ${client_info?.country}${subjectSuffix}`,
-      html: email_content,
-    });
-
-    console.log("Email sent successfully");
-
-    // Return the VID to the client if generated
-    const responseData = vid && !isReturningVisitor ? { vid } : {};
-    res.status(200).json(responseData);
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(200);
+    res.status(201).json({ visitorId: visitor?.visitorId, sessionId: session.sessionId });
+  } catch (error) {
+    console.error("Event tracking failed:", error);
+    res.status(500).json({ error: "Failed to track event" });
   }
 });
-
-//
-app.use(cors({ origin: "*" }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express_ip());
-app.use(router);
 
 export default app;
