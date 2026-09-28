@@ -1,4 +1,6 @@
-import { Schema, model, models } from "mongoose";
+import mongoose, { Schema, model } from "mongoose";
+
+const { models } = mongoose;
 
 const locationFields = {
   city: String,

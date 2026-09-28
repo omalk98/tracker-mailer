@@ -64,3 +64,24 @@ export function shouldNotify({ classification, isNewSession, type }) {
 export function canResumeSession(lastActivity, now = new Date()) {
   return now.getTime() - lastActivity.getTime() < SESSION_TIMEOUT_MS;
 }
+
+export function mergeCountryRows(rows) {
+  const countries = new Map();
+  for (const row of rows) {
+    if (!row.countryCode || !Number.isFinite(row.lat) || !Number.isFinite(row.lng)) continue;
+    const code = row.countryCode.toUpperCase();
+    const current = countries.get(code) || { visits: 0, latTotal: 0, lngTotal: 0 };
+    current.visits += row.visitCount;
+    current.latTotal += row.lat * row.visitCount;
+    current.lngTotal += row.lng * row.visitCount;
+    countries.set(code, current);
+  }
+  return [...countries.entries()]
+    .map(([countryCode, value]) => ({
+      countryCode,
+      lat: value.latTotal / value.visits,
+      lng: value.lngTotal / value.visits,
+      visitCount: value.visits,
+    }))
+    .sort((a, b) => b.visitCount - a.visitCount || a.countryCode.localeCompare(b.countryCode));
+}

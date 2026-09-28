@@ -5,6 +5,7 @@ import {
   canResumeSession,
   classifyUserAgent,
   eventSchema,
+  mergeCountryRows,
   normalizeIp,
   shouldNotify,
 } from "../api/tracking.js";
@@ -12,6 +13,20 @@ import {
 test("normalizeIp preserves IPv6 and unwraps IPv4-mapped IPv6", () => {
   assert.equal(normalizeIp("::ffff:203.0.113.9"), "203.0.113.9");
   assert.equal(normalizeIp("2001:db8::1"), "2001:db8::1");
+});
+
+test("mergeCountryRows returns compact country coordinates and combined counts", () => {
+  assert.deepEqual(
+    mergeCountryRows([
+      { countryCode: "CA", lat: 45, lng: -75, visitCount: 2 },
+      { countryCode: "CA", lat: 55, lng: -95, visitCount: 3 },
+      { countryCode: "US", lat: 39, lng: -98, visitCount: 1 },
+    ]),
+    [
+      { countryCode: "CA", lat: 51, lng: -87, visitCount: 5 },
+      { countryCode: "US", lat: 39, lng: -98, visitCount: 1 },
+    ]
+  );
 });
 
 test("classifyUserAgent separates crawlers and other bots from humans", () => {

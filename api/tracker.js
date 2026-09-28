@@ -11,7 +11,7 @@ import mongoose from "mongoose";
 import { createTransport } from "nodemailer";
 import { UAParser } from "ua-parser-js";
 import { Event, IpEnrichment, LegacyIp, Session, Visitor } from "./models.js";
-import { canResumeSession, classifyUserAgent, eventSchema, normalizeIp, shouldNotify } from "./tracking.js";
+import { canResumeSession, classifyUserAgent, eventSchema, mergeCountryRows, normalizeIp, shouldNotify } from "./tracking.js";
 
 loadEnv();
 mongoose.set("strictQuery", true);
@@ -97,32 +97,29 @@ async function sendSummary({ visitor, session, event }) {
 
 app.get("/map", requireAuth, async (_req, res) => {
   try {
-    const group = (prefix) => [
+    const group = (prefix) => {
+      const isSession = prefix === "location";
+      return [
       { $match: {
-        ...(prefix === "location" ? { classification: "human" } : {}),
+        ...(isSession ? { classification: "human" } : {}),
+        [isSession ? "location.countryCode" : "countryCode"]: { $nin: [null, ""] },
         [`${prefix}.lat`]: { $ne: null },
         [`${prefix}.lon`]: { $ne: null },
       } },
       { $group: {
-        _id: `$${prefix === "location" ? "location.country" : "country"}`,
-        lat: { $first: `$${prefix}.lat` }, lon: { $first: `$${prefix}.lon` },
-        countryCode: { $first: `$${prefix === "location" ? "location.countryCode" : "countryCode"}` },
+        _id: `$${isSession ? "location.countryCode" : "countryCode"}`,
+        lat: { $avg: `$${prefix}.lat` },
+        lng: { $avg: `$${prefix}.lon` },
         visitCount: { $sum: 1 },
       } },
+      { $project: { _id: 0, countryCode: "$_id", lat: 1, lng: 1, visitCount: 1 } },
     ];
+    };
     const [sessions, legacy] = await Promise.all([
       Session.aggregate(group("location")), LegacyIp.aggregate(group("coordinates")),
     ]);
-    const countries = new Map();
-    for (const country of [...legacy, ...sessions]) {
-      const current = countries.get(country._id);
-      countries.set(country._id, { ...country, visitCount: country.visitCount + (current?.visitCount || 0) });
-    }
-    res.json([...countries.values()].sort((a, b) => b.visitCount - a.visitCount).map((country) => ({
-      start: { lat: 43.6532, lng: -79.3832 },
-      end: { lat: country.lat, lng: country.lon },
-      country: country._id, countryCode: country.countryCode, visitCount: country.visitCount,
-    })));
+    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
+    res.json(mergeCountryRows([...legacy, ...sessions]));
   } catch (error) {
     console.error("Map query failed:", error);
     res.status(500).json({ error: "Failed to fetch map data" });
