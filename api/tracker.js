@@ -10,8 +10,8 @@ import Handlebars from "handlebars";
 import mongoose from "mongoose";
 import { createTransport } from "nodemailer";
 import { UAParser } from "ua-parser-js";
-import { Event, IpEnrichment, LegacyIp, Session, Visitor } from "./models.js";
-import { canResumeSession, classifyUserAgent, eventSchema, mergeCountryRows, normalizeIp, shouldNotify } from "./tracking.js";
+import { Event, IpEnrichment, Session, Visitor } from "./models.js";
+import { canResumeSession, classifyUserAgent, eventSchema, normalizeIp, shouldNotify } from "./tracking.js";
 
 loadEnv();
 mongoose.set("strictQuery", true);
@@ -97,29 +97,24 @@ async function sendSummary({ visitor, session, event }) {
 
 app.get("/map", requireAuth, async (_req, res) => {
   try {
-    const group = (prefix) => {
-      const isSession = prefix === "location";
-      return [
+    const countries = await Session.aggregate([
       { $match: {
-        ...(isSession ? { classification: "human" } : {}),
-        [isSession ? "location.countryCode" : "countryCode"]: { $nin: [null, ""] },
-        [`${prefix}.lat`]: { $ne: null },
-        [`${prefix}.lon`]: { $ne: null },
+        classification: "human",
+        "location.countryCode": { $nin: [null, ""] },
+        "location.lat": { $ne: null },
+        "location.lon": { $ne: null },
       } },
       { $group: {
-        _id: `$${isSession ? "location.countryCode" : "countryCode"}`,
-        lat: { $avg: `$${prefix}.lat` },
-        lng: { $avg: `$${prefix}.lon` },
+        _id: "$location.countryCode",
+        lat: { $avg: "$location.lat" },
+        lng: { $avg: "$location.lon" },
         visitCount: { $sum: 1 },
       } },
       { $project: { _id: 0, countryCode: "$_id", lat: 1, lng: 1, visitCount: 1 } },
-    ];
-    };
-    const [sessions, legacy] = await Promise.all([
-      Session.aggregate(group("location")), LegacyIp.aggregate(group("coordinates")),
+      { $sort: { visitCount: -1, countryCode: 1 } },
     ]);
     res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
-    res.json(mergeCountryRows([...legacy, ...sessions]));
+    res.json(countries);
   } catch (error) {
     console.error("Map query failed:", error);
     res.status(500).json({ error: "Failed to fetch map data" });

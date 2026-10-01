@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "test": "node --test --test-isolation=none"
+    "test": "node --test --test-isolation=none",
+    "migrate:legacy": "node scripts/migrate-legacy.js"
   },
   "keywords": [],
   "author": "",

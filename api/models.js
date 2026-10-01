@@ -16,6 +16,7 @@ const locationFields = {
 
 const VisitorSchema = new Schema({
   visitorId: { type: String, required: true, unique: true, index: true },
+  nickname: String,
   createdAt: { type: Date, required: true },
   lastSeen: { type: Date, required: true },
   sessionCount: { type: Number, default: 0 },
@@ -64,18 +65,8 @@ const IpEnrichmentSchema = new Schema({
   expiresAt: { type: Date, required: true, expires: 0 },
 });
 
-const LegacyIpSchema = new Schema(
-  {
-    country: String,
-    countryCode: String,
-    coordinates: { lat: Number, lon: Number },
-  },
-  { collection: "ips" }
-);
-
 export const Visitor = models.Visitor || model("Visitor", VisitorSchema);
 export const Session = models.Session || model("Session", SessionSchema);
 export const Event = models.Event || model("Event", EventSchema);
 export const IpEnrichment =
   models.IpEnrichment || model("IpEnrichment", IpEnrichmentSchema);
-export const LegacyIp = models.LegacyIp || model("LegacyIp", LegacyIpSchema);
