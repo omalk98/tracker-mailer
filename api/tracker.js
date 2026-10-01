@@ -87,11 +87,14 @@ async function resolveSession({ sessionId, visitorId, timestamp, classification,
 
 async function sendSummary({ visitor, session, event }) {
   const events = await Event.find({ sessionId: session.sessionId }).sort({ occurredAt: 1 }).lean();
+  const mapsUrl = session.location?.lat != null && session.location?.lon != null
+    ? `https://www.google.com/maps?q=${encodeURIComponent(`${session.location.lat},${session.location.lon}`)}`
+    : null;
   await transporter.sendMail({
     from: process.env.SENDER_EMAIL,
     to: process.env.RECEIVER_EMAIL,
     subject: `${event.type === "page_view" ? "New" : "Updated"} portfolio session from ${session.location?.city || "unknown location"}`,
-    html: template({ visitor: visitor?.toObject(), session: session.toObject(), events }),
+    html: template({ visitor: visitor?.toObject(), session: session.toObject(), events, mapsUrl }),
   });
 }
 
